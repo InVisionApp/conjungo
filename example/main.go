@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/InVisionApp/go-merge"
+	"github.com/InVisionApp/go-merge/util"
 	log "github.com/Sirupsen/logrus"
 	"reflect"
 )
@@ -44,6 +45,11 @@ func main() {
 		log.Fatal(err)
 	}
 
+	destMap2, err := destFoo.toMap()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	newFMap, err := newFoo.toMap()
 	if err != nil {
 		log.Fatal(err)
@@ -61,24 +67,26 @@ func main() {
 		},
 	)
 
-	destMapOver, err := merge.Merge(destMap, newFMap, opts) //TODO: set overwrite = true
+	destMapOver, err := merge.Merge(destMap, newFMap, opts)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	//merMap, err := merge.Merge(destMap, newFMap, opts)
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
+	noOverOpt := opts
+	noOverOpt.Overwrite = false
+	merMap, err := merge.Merge(destMap2, newFMap, noOverOpt)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	fmt.Println("\n\nOUTPUT:\n")
 	fmt.Println("overwrite")
-	indentMarshalPrint(destMapOver)
+	util.IndentMarshalPrint(destMapOver)
 
-	//fmt.Println("\n")
-	//
-	//fmt.Println("no overwrite")
-	//indentMarshalPrint(merMap)
+	fmt.Println("\n")
+
+	fmt.Println("no overwrite")
+	util.IndentMarshalPrint(merMap)
 
 	fmt.Println("\nEND")
 
@@ -96,14 +104,4 @@ func (f *Foo) toMap() (map[string]interface{}, error) {
 	}
 
 	return *resultMap, nil
-}
-
-func indentMarshalPrint(i interface{}) error {
-	jBody, err := json.MarshalIndent(i, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	fmt.Println(string(jBody))
-	return nil
 }

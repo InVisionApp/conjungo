@@ -2,12 +2,13 @@ package merge
 
 import (
 	"fmt"
+	"github.com/InVisionApp/go-merge/util"
 	"github.com/Sirupsen/logrus"
 	"reflect"
 )
 
 type Options struct {
-	Overwrite  bool //TODO: actually use this
+	Overwrite  bool
 	mergeFuncs map[reflect.Type]MergeFunc
 }
 
@@ -32,7 +33,7 @@ func Merge(target, src map[string]interface{}, opt *Options) (map[string]interfa
 	}
 	logrus.Debugf("OPT: %v", opt)
 
-	targetCopy := copyMap(target)
+	targetCopy := util.CopyMap(target)
 	if err := merge(&targetCopy, src, opt); err != nil {
 		return nil, err
 	}
@@ -40,37 +41,47 @@ func Merge(target, src map[string]interface{}, opt *Options) (map[string]interfa
 }
 
 func merge(target *map[string]interface{}, src map[string]interface{}, opt *Options) error {
-	logrus.Debugf("TARGET: %v", target)
-	logrus.Debugf("SOURCE: %v", src)
 	for k, v := range src {
 		typeS := reflect.TypeOf(v)
-		typeT := reflect.TypeOf((*target)[k])
-		logrus.Debugf("TYPE T<>S '%s': %v <> %v", k, typeT, typeS)
 
-		// a new value to insert
-		if typeT == nil || typeS == nil {
+		origT, okT := (*target)[k]
+		typeT := reflect.TypeOf(origT)
+
+		logrus.Debugf("MERGE T<>S '%s' :: %v <> %v :: %v <> %v", k, origT, v, typeT, typeS)
+
+		// if source is nil, skip
+		if v == nil {
+			continue
+		}
+
+		// insert if it does not exist in target
+		if !okT {
 			(*target)[k] = v
 			continue
 		}
+
+		// if types do not match, bail
 		if typeT != typeS {
 			return fmt.Errorf("Types do not match for key '%s': %v, %v", k, typeT, typeS)
 		}
 
 		// otherwise look for a merge function
 		f, ok := opt.mergeFuncs[typeS]
-		if ok { // if a custom merge is defined, use it
+		if ok { // if a custom merge is defined, use it (and catch errors)
 			if val, err := f((*target)[k], v, opt); err != nil {
 				return err
-			} else {
+			} else if opt.Overwrite {
 				(*target)[k] = val
 			}
 			continue
 		}
 
-		// otherwise just overwrite or insert new
-		(*target)[k] = v
-
+		// otherwise just overwrite
+		if opt.Overwrite {
+			(*target)[k] = v
+		}
 	}
+
 	return nil
 }
 
@@ -91,13 +102,4 @@ func mergeSlice(t, s interface{}, o *Options) (interface{}, error) {
 	sliceT, _ := t.([]interface{})
 	sliceS, _ := s.([]interface{})
 	return append(sliceT, sliceS...), nil
-}
-
-func copyMap(m map[string]interface{}) map[string]interface{} {
-	newMap := map[string]interface{}{}
-	for k, v := range m {
-		newMap[k] = v
-	}
-
-	return newMap
 }
