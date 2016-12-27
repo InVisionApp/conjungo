@@ -5,13 +5,16 @@ import (
 	"fmt"
 	"github.com/InVisionApp/go-merge"
 	log "github.com/Sirupsen/logrus"
+	"reflect"
 )
 
 type Foo struct {
-	A string `json:"a"`
-	B int64  `json:"b"`
-	C map[string]string
-	D *map[string]string
+	A string             `json:"a,omitempty"`
+	B int64              `json:"b,omitempty"`
+	C map[string]string  `json:"c,omitempty"`
+	D *map[string]string `json:"d,omitempty"`
+	E []string           `json:"e,omitempty"`
+	F []int              `json:"f,omitempty"`
 }
 
 func init() {
@@ -21,8 +24,11 @@ func init() {
 func main() {
 	destFoo := Foo{
 		A: "wrong",
+		B: 1,
 		C: map[string]string{"foo": "unchanged", "bar": "orig"},
 		D: &map[string]string{"foo": "unchanged", "bar": "orig"},
+		E: []string{"old"},
+		F: []int{1},
 	}
 
 	newFoo := Foo{
@@ -30,6 +36,7 @@ func main() {
 		B: 2,
 		C: map[string]string{"bar": "newVal", "safe": "added"},
 		D: &map[string]string{"bar": "newVal", "safe": "added"},
+		E: []string{"new"},
 	}
 
 	destMap, err := destFoo.toMap()
@@ -42,24 +49,36 @@ func main() {
 		log.Fatal(err)
 	}
 
-	destMapOver, err := merge.Merge(destMap, newFMap, &merge.Options{Overwrite: true})
+	fmt.Printf("NEWMAP: %v", newFMap)
+
+	opts := merge.NewOptions()
+	opts.SetMergeFunc(
+		reflect.TypeOf(float64(0)),
+		func(t, s interface{}, o *merge.Options) (interface{}, error) {
+			iT, _ := t.(float64)
+			iS, _ := s.(float64)
+			return iT + iS, nil
+		},
+	)
+
+	destMapOver, err := merge.Merge(destMap, newFMap, opts) //TODO: set overwrite = true
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	merMap, err := merge.Merge(destMap, newFMap, &merge.Options{})
-	if err != nil {
-		log.Fatal(err)
-	}
+	//merMap, err := merge.Merge(destMap, newFMap, opts)
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
 
 	fmt.Println("\n\nOUTPUT:\n")
 	fmt.Println("overwrite")
 	indentMarshalPrint(destMapOver)
 
-	fmt.Println("\n")
-
-	fmt.Println("no overwrite")
-	indentMarshalPrint(merMap)
+	//fmt.Println("\n")
+	//
+	//fmt.Println("no overwrite")
+	//indentMarshalPrint(merMap)
 
 	fmt.Println("\nEND")
 

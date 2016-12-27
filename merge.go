@@ -7,11 +7,31 @@ import (
 )
 
 type Options struct {
-	Overwrite bool //TODO: actually use this
+	Overwrite  bool //TODO: actually use this
+	mergeFuncs map[reflect.Type]MergeFunc
+}
+
+func NewOptions() *Options {
+	return &Options{
+		Overwrite: true,
+		mergeFuncs: map[reflect.Type]MergeFunc{
+			reflect.TypeOf(map[string]interface{}{}): mergeMap, //recursion becomes less obvious but allows custom handler
+			reflect.TypeOf([]interface{}{}):          mergeSlice,
+		},
+	}
+}
+
+func (o *Options) SetMergeFunc(t reflect.Type, f MergeFunc) {
+	o.mergeFuncs[t] = f
 }
 
 func Merge(target, src map[string]interface{}, opt *Options) (map[string]interface{}, error) {
+	// use defaults if none are provided
+	if opt == nil {
+		opt = NewOptions()
+	}
 	logrus.Debugf("OPT: %v", opt)
+
 	targetCopy := copyMap(target)
 	if err := merge(&targetCopy, src, opt); err != nil {
 		return nil, err
@@ -25,44 +45,52 @@ func merge(target *map[string]interface{}, src map[string]interface{}, opt *Opti
 	for k, v := range src {
 		typeS := reflect.TypeOf(v)
 		typeT := reflect.TypeOf((*target)[k])
-		logrus.Debugf("TYPE T<>S: %v <> %v", typeT, typeS)
+		logrus.Debugf("TYPE T<>S '%s': %v <> %v", k, typeT, typeS)
 
 		// a new value to insert
-		if typeT == nil { //TODO: do this better
+		if typeT == nil || typeS == nil {
 			(*target)[k] = v
 			continue
 		}
-		if typeS != typeT {
-			return fmt.Errorf("Types do not match for key '%s'", k)
+		if typeT != typeS {
+			return fmt.Errorf("Types do not match for key '%s': %v, %v", k, typeT, typeS)
 		}
 
-		// if the value is a sub map handle it
-		if typeS == reflect.TypeOf(map[string]interface{}{}) { // might be a better way to determine this
-			mapT, _ := (*target)[k].(map[string]interface{})
-			mapS, _ := v.(map[string]interface{})
-			if err := merge(&mapT, mapS, opt); err != nil {
+		// otherwise look for a merge function
+		f, ok := opt.mergeFuncs[typeS]
+		if ok { // if a custom merge is defined, use it
+			if val, err := f((*target)[k], v, opt); err != nil {
 				return err
+			} else {
+				(*target)[k] = val
 			}
 			continue
 		}
 
-		// otherwise look for a merge function
-		f, ok := mergeFuncs[typeS]
-		if ok { // if a custom merge is defined, use it
-			(*target)[k] = f((*target)[k], v, opt)
-		} else { // otherwise just overwrite
-			(*target)[k] = v
-		}
+		// otherwise just overwrite or insert new
+		(*target)[k] = v
+
 	}
 	return nil
 }
 
-type MergeFunc func(interface{}, interface{}, *Options) interface{}
+type MergeFunc func(interface{}, interface{}, *Options) (interface{}, error)
 
-var mergeFuncs = map[reflect.Type]MergeFunc{
-	reflect.TypeOf(map[string]interface{}{}): func(t, s interface{}, o *Options) interface{} {
-		return t
-	},
+func mergeMap(t, s interface{}, o *Options) (interface{}, error) {
+	mapT, _ := t.(map[string]interface{})
+	mapS, _ := s.(map[string]interface{})
+
+	if err := merge(&mapT, mapS, o); err != nil {
+		return nil, err
+	}
+
+	return mapT, nil
+}
+
+func mergeSlice(t, s interface{}, o *Options) (interface{}, error) {
+	sliceT, _ := t.([]interface{})
+	sliceS, _ := s.([]interface{})
+	return append(sliceT, sliceS...), nil
 }
 
 func copyMap(m map[string]interface{}) map[string]interface{} {
