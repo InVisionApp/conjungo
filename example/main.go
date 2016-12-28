@@ -9,6 +9,102 @@ import (
 	"reflect"
 )
 
+func init() {
+	log.SetLevel(log.InfoLevel)
+}
+
+func main() {
+	fmt.Println("Simple merge")
+	Simple()
+
+	fmt.Println()
+	fmt.Println("Custom merge func")
+	CustomMerge()
+
+	fmt.Println()
+	fmt.Println("No overwrite")
+	NoOverwrite()
+
+	fmt.Println()
+	fmt.Println("From JSON")
+	FromJSON()
+}
+
+func Simple() {
+	targetMap := map[string]interface{}{
+		"A": "wrong",
+		"B": 1,
+		"C": map[string]interface{}{"foo": "unchanged", "bar": "orig"},
+		"D": []interface{}{"unchanged", 0},
+	}
+
+	sourceMap := map[string]interface{}{
+		"A": "correct",
+		"B": 2,
+		"C": map[string]interface{}{"bar": "newVal", "safe": "added"},
+		"D": []interface{}{"added", 1},
+	}
+
+	newMap, err := merge.Merge(targetMap, sourceMap, merge.NewOptions())
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	util.MarshalIndentPrint(newMap)
+}
+
+func CustomMerge() {
+	targetMap := map[string]interface{}{
+		"A": "wrong",
+		"B": 1,
+	}
+
+	sourceMap := map[string]interface{}{
+		"A": "correct",
+		"B": 2,
+	}
+
+	opts := merge.NewOptions()
+	opts.SetMergeFunc(
+		reflect.TypeOf(0),
+		func(t, s interface{}, o *merge.Options) (interface{}, error) {
+			iT, _ := t.(int)
+			iS, _ := s.(int)
+			return iT + iS, nil
+		},
+	)
+
+	newMap, err := merge.Merge(targetMap, sourceMap, opts)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	util.MarshalIndentPrint(newMap)
+}
+
+func NoOverwrite() {
+	targetMap := map[string]interface{}{
+		"A": "wrong",
+		"B": 1,
+		"C": map[string]string{"foo": "unchanged", "bar": "orig"},
+	}
+
+	sourceMap := map[string]interface{}{
+		"A": "correct",
+		"B": 2,
+		"C": map[string]string{"bar": "newVal", "safe": "added"},
+	}
+
+	opts := merge.NewOptions()
+	opts.Overwrite = false
+	newMap, err := merge.Merge(targetMap, sourceMap, opts)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	util.MarshalIndentPrint(newMap)
+}
+
 type Foo struct {
 	A string             `json:"a,omitempty"`
 	B int64              `json:"b,omitempty"`
@@ -18,12 +114,8 @@ type Foo struct {
 	F []int              `json:"f,omitempty"`
 }
 
-func init() {
-	log.SetLevel(log.InfoLevel)
-
-}
-func main() {
-	destFoo := Foo{
+func FromJSON() {
+	targetFoo := Foo{
 		A: "wrong",
 		B: 1,
 		C: map[string]string{"foo": "unchanged", "bar": "orig"},
@@ -32,7 +124,7 @@ func main() {
 		F: []int{1},
 	}
 
-	newFoo := Foo{
+	sourceFoo := Foo{
 		A: "correct",
 		B: 2,
 		C: map[string]string{"bar": "newVal", "safe": "added"},
@@ -40,59 +132,25 @@ func main() {
 		E: []string{"new"},
 	}
 
-	destMap, err := destFoo.toMap()
+	targetMap, err := targetFoo.toMapViaJSON()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	destMap2, err := destFoo.toMap()
+	sourceMap, err := sourceFoo.toMapViaJSON()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	newFMap, err := newFoo.toMap()
+	resultMap, err := merge.Merge(targetMap, sourceMap, merge.NewOptions())
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("NEWMAP: %v", newFMap)
-
-	opts := merge.NewOptions()
-	opts.SetMergeFunc(
-		reflect.TypeOf(float64(0)),
-		func(t, s interface{}, o *merge.Options) (interface{}, error) {
-			iT, _ := t.(float64)
-			iS, _ := s.(float64)
-			return iT + iS, nil
-		},
-	)
-
-	destMapOver, err := merge.Merge(destMap, newFMap, opts)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	noOverOpt := opts
-	noOverOpt.Overwrite = false
-	merMap, err := merge.Merge(destMap2, newFMap, noOverOpt)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println("\n\nOUTPUT:\n")
-	fmt.Println("overwrite")
-	util.IndentMarshalPrint(destMapOver)
-
-	fmt.Println("\n")
-
-	fmt.Println("no overwrite")
-	util.IndentMarshalPrint(merMap)
-
-	fmt.Println("\nEND")
-
+	util.MarshalIndentPrint(resultMap)
 }
 
-func (f *Foo) toMap() (map[string]interface{}, error) {
+func (f *Foo) toMapViaJSON() (map[string]interface{}, error) {
 	jsonBody, err := json.Marshal(f)
 	if err != nil {
 		return nil, err

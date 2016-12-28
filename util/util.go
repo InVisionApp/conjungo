@@ -14,7 +14,7 @@ func CopyMap(m map[string]interface{}) map[string]interface{} {
 	return newMap
 }
 
-func IndentMarshalPrint(i interface{}) error {
+func MarshalIndentPrint(i interface{}) error {
 	jBody, err := json.MarshalIndent(i, "", "  ")
 	if err != nil {
 		return err

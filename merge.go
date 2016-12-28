@@ -10,6 +10,7 @@ import (
 type Options struct {
 	Overwrite  bool
 	mergeFuncs map[reflect.Type]MergeFunc
+	//TODO: also do one indexed by refelct.Kind to allow broader merge definitions
 }
 
 func NewOptions() *Options {
