@@ -66,14 +66,15 @@ func merge(target *map[string]interface{}, src map[string]interface{}, opt *Opti
 			return fmt.Errorf("Types do not match for key '%s': %v, %v", k, typeT, typeS)
 		}
 
-		// otherwise look for a merge function
+		// look for a merge function
 		f, ok := opt.mergeFuncs[typeS]
 		if ok { // if a custom merge is defined, use it (and catch errors)
-			if val, err := f((*target)[k], v, opt); err != nil {
+			val, err := f((*target)[k], v, opt)
+			if err != nil {
 				return err
-			} else if opt.Overwrite {
-				(*target)[k] = val
 			}
+
+			(*target)[k] = val
 			continue
 		}
 
@@ -86,6 +87,10 @@ func merge(target *map[string]interface{}, src map[string]interface{}, opt *Opti
 	return nil
 }
 
+// A function which defines how two items of the same type are merged together.
+// Options are also passed in and it is the responsibility of the merge function to handle
+// any variations in behavior that should occur. The value returned from the function will be
+// written to directly to the target map, as long as there is no error.
 type MergeFunc func(interface{}, interface{}, *Options) (interface{}, error)
 
 func mergeMap(t, s interface{}, o *Options) (interface{}, error) {

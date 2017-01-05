@@ -3,10 +3,11 @@ package merge
 import (
 	"encoding/json"
 	"errors"
+	"reflect"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
-	"reflect"
 )
 
 var _ = Describe("Options", func() {
@@ -93,6 +94,87 @@ var _ = Describe("merge", func() {
 		})
 	})
 
+	Context("happy path - overwrite is false", func() {
+		var (
+			newMap map[string]interface{}
+			err    error
+		)
+
+		BeforeEach(func() {
+			targetMap = map[string]interface{}{
+				"A": "original",
+				"B": 1,
+				"C": map[string]interface{}{"foo": "unchanged", "bar": "orig"},
+				"D": []interface{}{"unchanged", 0},
+			}
+
+			sourceMap = map[string]interface{}{
+				"A": "overwritten",
+				"B": 2,
+				"C": map[string]interface{}{"bar": "newVal", "baz": "added"},
+				"D": []interface{}{"added", 1},
+				"E": "inserted",
+			}
+
+			opts := NewOptions()
+			opts.Overwrite = false
+			newMap, err = Merge(targetMap, sourceMap, opts)
+		})
+
+		It("does not error", func() {
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		It("does not overwrite a top level string", func() {
+			Expect(newMap["A"]).To(Equal("original"))
+		})
+
+		It("does not overwrite a top level int", func() {
+			Expect(newMap["B"]).To(Equal(1))
+		})
+
+		It("inserts a new top level string", func() {
+			Expect(newMap["E"]).To(Equal("inserted"))
+		})
+
+		Context("sub map", func() {
+			var (
+				newSubMap map[string]interface{}
+				ok        bool
+			)
+
+			JustBeforeEach(func() {
+				newSubMap, ok = newMap["C"].(map[string]interface{})
+				Expect(ok).To(BeTrue())
+			})
+
+			It("does not overwrite a sub map value", func() {
+				Expect(newSubMap["bar"]).To(Equal("orig"))
+			})
+
+			It("inserts a new sub map value", func() {
+				Expect(newSubMap["baz"]).To(Equal("added"))
+			})
+
+			It("maintains unduplicated values", func() {
+				Expect(newSubMap["foo"]).To(Equal("unchanged"))
+			})
+		})
+
+		Context("sub slice", func() {
+			It("merges properly", func() {
+				newSubSlice, ok := newMap["D"].([]interface{})
+				Expect(ok).To(BeTrue())
+
+				Expect(len(newSubSlice)).To(Equal(4))
+				Expect(newSubSlice).To(ContainElement("unchanged"))
+				Expect(newSubSlice).To(ContainElement(0))
+				Expect(newSubSlice).To(ContainElement("added"))
+				Expect(newSubSlice).To(ContainElement(1))
+			})
+		})
+	})
+
 	Context("happy path specific types", func() {
 		DescribeTable("basic types",
 			func(target, source interface{}) {
@@ -149,6 +231,10 @@ var _ = Describe("merge", func() {
 			})
 		})
 
+		Context("map within a map", func() {
+			//TODO
+		})
+
 		Context("merge slice", func() {
 			It("merges correctly", func() {
 				targetMap = map[string]interface{}{
@@ -165,6 +251,7 @@ var _ = Describe("merge", func() {
 				dataSlice, ok := mergedMap[testKey].([]interface{})
 				Expect(ok).To(BeTrue())
 
+				Expect(len(dataSlice)).To(Equal(4))
 				Expect(dataSlice).To(ContainElement("unchanged"))
 				Expect(dataSlice).To(ContainElement(0))
 				Expect(dataSlice).To(ContainElement("added"))
@@ -218,7 +305,7 @@ var _ = Describe("merge", func() {
 			})
 		})
 
-		Context("type mismatch returns error", func() {
+		Context("type mismatch", func() {
 			It("returns an error", func() {
 				targetMap = map[string]interface{}{
 					testKey: 0,
@@ -232,6 +319,12 @@ var _ = Describe("merge", func() {
 
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("Types do not match for key"))
+			})
+		})
+
+		Context("type mismatch deeper in the tree", func() {
+			It("returns an error", func() {
+				//TODO
 			})
 		})
 	})
