@@ -54,23 +54,38 @@ func Simple() {
 }
 
 func CustomMerge() {
+	type foo struct {
+		Bar string
+	}
+
 	targetMap := map[string]interface{}{
 		"A": "wrong",
 		"B": 1,
+		"C": foo{"target"},
 	}
 
 	sourceMap := map[string]interface{}{
 		"A": "correct",
 		"B": 2,
+		"C": foo{"source"},
 	}
 
 	opts := merge.NewOptions()
-	opts.SetMergeFunc(
+	opts.MergeFuncs.SetTypeMergeFunc(
 		reflect.TypeOf(0),
+		// merge two 'int' types by adding them together
 		func(t, s interface{}, o *merge.Options) (interface{}, error) {
 			iT, _ := t.(int)
 			iS, _ := s.(int)
 			return iT + iS, nil
+		},
+	)
+
+	opts.MergeFuncs.SetKindMergeFunc(
+		reflect.TypeOf(struct{}{}).Kind(),
+		// merge two 'struct' kinds by replacing the target with the source
+		func(t, s interface{}, o *merge.Options) (interface{}, error) {
+			return s, nil
 		},
 	)
 

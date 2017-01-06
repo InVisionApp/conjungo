@@ -9,22 +9,59 @@ import (
 
 type Options struct {
 	Overwrite  bool
-	mergeFuncs map[reflect.Type]MergeFunc
-	//TODO: also do one indexed by refelct.Kind to allow broader merge definitions
+	MergeFuncs *funcSelector
 }
 
 func NewOptions() *Options {
 	return &Options{
-		Overwrite: true,
-		mergeFuncs: map[reflect.Type]MergeFunc{
-			reflect.TypeOf(map[string]interface{}{}): mergeMap, //recursion becomes less obvious but allows custom handler
-			reflect.TypeOf([]interface{}{}):          mergeSlice,
-		},
+		Overwrite:  true,
+		MergeFuncs: newFuncSelector(),
 	}
 }
 
-func (o *Options) SetMergeFunc(t reflect.Type, f MergeFunc) {
-	o.mergeFuncs[t] = f
+type funcSelector struct {
+	typeFuncs   map[reflect.Type]MergeFunc
+	kindFuncs   map[reflect.Kind]MergeFunc
+	defaultFunc MergeFunc
+}
+
+func newFuncSelector() *funcSelector {
+	return &funcSelector{
+		typeFuncs: map[reflect.Type]MergeFunc{
+			reflect.TypeOf(map[string]interface{}{}): mergeMap, //recursion becomes less obvious but allows custom handler
+			reflect.TypeOf([]interface{}{}):          mergeSlice,
+		},
+		kindFuncs:   map[reflect.Kind]MergeFunc{},
+		defaultFunc: defaultMergeFunc,
+	}
+}
+
+func (f *funcSelector) SetTypeMergeFunc(t reflect.Type, mf MergeFunc) {
+	f.typeFuncs[t] = mf
+}
+
+func (f *funcSelector) SetKindMergeFunc(k reflect.Kind, mf MergeFunc) {
+	f.kindFuncs[k] = mf
+}
+
+func (f *funcSelector) SetDefaultMergeFunc(mf MergeFunc) {
+	f.defaultFunc = mf
+}
+
+// Get func must always return a function.
+func (f *funcSelector) GetFunc(i interface{}) MergeFunc {
+	// prioritize a specific 'type' definition
+	ti := reflect.TypeOf(i)
+	if fx, ok := f.typeFuncs[ti]; ok {
+		return fx
+	}
+
+	// then look for a more general 'kind'.
+	if fx, ok := f.kindFuncs[ti.Kind()]; ok {
+		return fx
+	}
+
+	return f.defaultFunc
 }
 
 func Merge(target, src map[string]interface{}, opt *Options) (map[string]interface{}, error) {
@@ -42,22 +79,22 @@ func Merge(target, src map[string]interface{}, opt *Options) (map[string]interfa
 }
 
 func merge(target *map[string]interface{}, src map[string]interface{}, opt *Options) error {
-	for k, v := range src {
-		typeS := reflect.TypeOf(v)
+	for k, valS := range src {
+		typeS := reflect.TypeOf(valS)
 
-		origT, okT := (*target)[k]
-		typeT := reflect.TypeOf(origT)
+		valT, okT := (*target)[k]
+		typeT := reflect.TypeOf(valT)
 
-		logrus.Debugf("MERGE T<>S '%s' :: %v <> %v :: %v <> %v", k, origT, v, typeT, typeS)
+		logrus.Debugf("MERGE T<>S '%s' :: %v <> %v :: %v <> %v", k, valT, valS, typeT, typeS)
 
 		// if source is nil, skip
-		if v == nil {
+		if valS == nil {
 			continue
 		}
 
 		// insert if it does not exist in target
 		if !okT {
-			(*target)[k] = v
+			(*target)[k] = valS
 			continue
 		}
 
@@ -67,21 +104,13 @@ func merge(target *map[string]interface{}, src map[string]interface{}, opt *Opti
 		}
 
 		// look for a merge function
-		f, ok := opt.mergeFuncs[typeS]
-		if ok { // if a custom merge is defined, use it (and catch errors)
-			val, err := f((*target)[k], v, opt)
-			if err != nil {
-				return err
-			}
-
-			(*target)[k] = val
-			continue
+		f := opt.MergeFuncs.GetFunc(valT)
+		val, err := f((*target)[k], valS, opt)
+		if err != nil {
+			return err
 		}
 
-		// otherwise just overwrite
-		if opt.Overwrite {
-			(*target)[k] = v
-		}
+		(*target)[k] = val
 	}
 
 	return nil
@@ -92,6 +121,14 @@ func merge(target *map[string]interface{}, src map[string]interface{}, opt *Opti
 // any variations in behavior that should occur. The value returned from the function will be
 // written to directly to the target map, as long as there is no error.
 type MergeFunc func(interface{}, interface{}, *Options) (interface{}, error)
+
+func defaultMergeFunc(t, s interface{}, o *Options) (interface{}, error) {
+	if o.Overwrite {
+		return s, nil
+	}
+
+	return t, nil
+}
 
 func mergeMap(t, s interface{}, o *Options) (interface{}, error) {
 	mapT, _ := t.(map[string]interface{})

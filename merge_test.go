@@ -27,14 +27,22 @@ var _ = Describe("Options", func() {
 			Expect(testOpts.Overwrite).To(BeTrue())
 		})
 
-		It("has the correct mergefuncs", func() {
-			Expect(len(testOpts.mergeFuncs)).To(Equal(2))
+		It("sets up mergefuncs", func() {
+			Expect(testOpts.MergeFuncs).ToNot(BeNil())
+		})
+	})
+})
 
-			mapMerge, mapOk := testOpts.mergeFuncs[reflect.TypeOf(map[string]interface{}{})]
+var _ = Describe("funcSelector", func() {
+	Context("newFuncSelector", func() {
+		It("has the correct mergefuncs", func() {
+			fs := newFuncSelector()
+
+			mapMerge, mapOk := fs.typeFuncs[reflect.TypeOf(map[string]interface{}{})]
 			Expect(mapOk).To(BeTrue())
 			Expect(mapMerge).ToNot(BeNil())
 
-			sliceMerge, sliceOK := testOpts.mergeFuncs[reflect.TypeOf([]interface{}{})]
+			sliceMerge, sliceOK := fs.typeFuncs[reflect.TypeOf([]interface{}{})]
 			Expect(sliceOK).To(BeTrue())
 			Expect(sliceMerge).ToNot(BeNil())
 		})
@@ -292,7 +300,7 @@ var _ = Describe("merge", func() {
 
 				opts := NewOptions()
 				// define a merge func that always errors
-				opts.SetMergeFunc(
+				opts.MergeFuncs.SetTypeMergeFunc(
 					reflect.TypeOf(errors.New("")),
 					func(t, s interface{}, o *Options) (interface{}, error) {
 						return nil, errors.New("returns error")
