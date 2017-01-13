@@ -100,6 +100,11 @@ var _ = Describe("merge", func() {
 			}`
 			Expect(jsonB).To(MatchJSON(expectedJSON))
 		})
+
+		It("accepts nil options", func() {
+			_, err := Merge(targetMap, sourceMap, nil)
+			Expect(err).ToNot(HaveOccurred())
+		})
 	})
 
 	Context("happy path - overwrite is false", func() {
