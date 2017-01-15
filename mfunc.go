@@ -1,6 +1,9 @@
 package merge
 
-import "reflect"
+import (
+	"github.com/Sirupsen/logrus"
+	"reflect"
+)
 
 type funcSelector struct {
 	typeFuncs   map[reflect.Type]MergeFunc
@@ -65,8 +68,13 @@ func mergeMap(t, s interface{}, o *Options) (interface{}, error) {
 	mapT, _ := t.(map[string]interface{})
 	mapS, _ := s.(map[string]interface{})
 
-	if err := merge(&mapT, mapS, o); err != nil {
-		return nil, err
+	for k, valS := range mapS {
+		logrus.Debugf("MERGE T<>S '%s' :: %v <> %v", k, mapT[k], valS)
+		val, err := merge(mapT[k], valS, o)
+		if err != nil {
+			return nil, err
+		}
+		mapT[k] = val
 	}
 
 	return mapT, nil

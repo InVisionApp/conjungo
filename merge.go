@@ -2,7 +2,6 @@ package merge
 
 import (
 	"fmt"
-	"github.com/InVisionApp/go-merge/util"
 	"github.com/Sirupsen/logrus"
 	"reflect"
 )
@@ -26,47 +25,46 @@ func Merge(target, src map[string]interface{}, opt *Options) (map[string]interfa
 	}
 	logrus.Debugf("OPT: %v", opt)
 
-	targetCopy := util.CopyMap(target)
-	if err := merge(&targetCopy, src, opt); err != nil {
+	val, err := merge(target, src, opt)
+	if err != nil {
 		return nil, err
 	}
-	return targetCopy, nil
-}
 
-func merge(target *map[string]interface{}, src map[string]interface{}, opt *Options) error {
-	for k, valS := range src {
-		typeS := reflect.TypeOf(valS)
-
-		valT, okT := (*target)[k]
-		typeT := reflect.TypeOf(valT)
-
-		logrus.Debugf("MERGE T<>S '%s' :: %v <> %v :: %v <> %v", k, valT, valS, typeT, typeS)
-
-		// if source is nil, skip
-		if valS == nil {
-			continue
-		}
-
-		// insert if it does not exist in target
-		if !okT {
-			(*target)[k] = valS
-			continue
-		}
-
-		// if types do not match, bail
-		if typeT != typeS {
-			return fmt.Errorf("Types do not match for key '%s': %v, %v", k, typeT, typeS)
-		}
-
-		// look for a merge function
-		f := opt.MergeFuncs.GetFunc(valT)
-		val, err := f((*target)[k], valS, opt)
-		if err != nil {
-			return err
-		}
-
-		(*target)[k] = val
+	valMap, ok := val.(map[string]interface{})
+	if ok {
+		return valMap, nil
 	}
 
-	return nil
+	return nil, fmt.Errorf("Merge failed. Expected map[string]interface{} but got %v", reflect.TypeOf(val))
+}
+
+func merge(target interface{}, src interface{}, opt *Options) (interface{}, error) {
+	typeS := reflect.TypeOf(src)
+	typeT := reflect.TypeOf(target)
+
+	logrus.Debugf("MERGE T<>S :: %v (%v) <> %v (%v)", target, typeT, src, typeS)
+
+	// if source is nil, skip
+	if src == nil {
+		return target, nil
+	}
+
+	// if target is nil write to it
+	if target == nil {
+		return src, nil
+	}
+
+	// if types do not match, bail
+	if typeT != typeS {
+		return nil, fmt.Errorf("Types do not match: %v, %v", typeT, typeS)
+	}
+
+	// look for a merge function
+	f := opt.MergeFuncs.GetFunc(target)
+	val, err := f(target, src, opt)
+	if err != nil {
+		return nil, err
+	}
+
+	return val, nil
 }

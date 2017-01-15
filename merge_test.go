@@ -331,7 +331,7 @@ var _ = Describe("merge", func() {
 				_, err := Merge(targetMap, sourceMap, NewOptions())
 
 				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("Types do not match for key"))
+				Expect(err.Error()).To(ContainSubstring("Types do not match"))
 			})
 		})
 
