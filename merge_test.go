@@ -244,6 +244,20 @@ var _ = Describe("merge", func() {
 			})
 		})
 
+		Context("nil target map", func() {
+			It("merges correctly", func() {
+				targetMap = nil
+
+				sourceMap = map[string]interface{}{"bar": "newVal", "baz": "added"}
+
+				mergedMap, err := Merge(targetMap, sourceMap, NewOptions())
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(mergedMap["bar"]).To(Equal("newVal"))
+				Expect(mergedMap["baz"]).To(Equal("added"))
+			})
+		})
+
 		Context("map within a map", func() {
 			//TODO
 		})

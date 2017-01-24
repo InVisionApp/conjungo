@@ -68,6 +68,11 @@ func mergeMap(t, s interface{}, o *Options) (interface{}, error) {
 	mapT, _ := t.(map[string]interface{})
 	mapS, _ := s.(map[string]interface{})
 
+	// if empty, use the source
+	if len(mapT) < 1 {
+		return mapS, nil
+	}
+
 	for k, valS := range mapS {
 		logrus.Debugf("MERGE T<>S '%s' :: %v <> %v", k, mapT[k], valS)
 		val, err := merge(mapT[k], valS, o)
