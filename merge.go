@@ -18,14 +18,9 @@ func NewOptions() *Options {
 	}
 }
 
-func Merge(target, src map[string]interface{}, opt *Options) (map[string]interface{}, error) {
-	// use defaults if none are provided
-	if opt == nil {
-		opt = NewOptions()
-	}
-	logrus.Debugf("OPT: %v", opt)
-
-	val, err := merge(target, src, opt)
+// helper to wrap type assertion
+func MergeMapStrIface(target, src map[string]interface{}, opt *Options) (map[string]interface{}, error) {
+	val, err := Merge(target, src, opt)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +33,18 @@ func Merge(target, src map[string]interface{}, opt *Options) (map[string]interfa
 	return nil, fmt.Errorf("Merge failed. Expected map[string]interface{} but got %v", reflect.TypeOf(val))
 }
 
-func merge(target interface{}, src interface{}, opt *Options) (interface{}, error) {
+// public wrapper
+func Merge(target, source interface{}, opt *Options) (interface{}, error) {
+	// use defaults if none are provided
+	if opt == nil {
+		opt = NewOptions()
+	}
+	logrus.Debugf("OPT: %v", opt)
+
+	return merge(target, source, opt)
+}
+
+func merge(target, src interface{}, opt *Options) (interface{}, error) {
 	typeS := reflect.TypeOf(src)
 	typeT := reflect.TypeOf(target)
 

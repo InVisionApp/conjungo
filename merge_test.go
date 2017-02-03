@@ -33,27 +33,7 @@ var _ = Describe("Options", func() {
 	})
 })
 
-var _ = Describe("funcSelector", func() {
-	Context("newFuncSelector", func() {
-		It("has the correct mergefuncs", func() {
-			fs := newFuncSelector()
-
-			mapMerge, mapOk := fs.typeFuncs[reflect.TypeOf(map[string]interface{}{})]
-			Expect(mapOk).To(BeTrue())
-			Expect(mapMerge).ToNot(BeNil())
-
-			sliceMerge, sliceOK := fs.typeFuncs[reflect.TypeOf([]interface{}{})]
-			Expect(sliceOK).To(BeTrue())
-			Expect(sliceMerge).ToNot(BeNil())
-		})
-	})
-})
-
-var _ = Describe("merge", func() {
-	const (
-		testKey = "theKey"
-	)
-
+var _ = Describe("Merge", func() {
 	var (
 		targetMap, sourceMap map[string]interface{}
 	)
@@ -76,9 +56,11 @@ var _ = Describe("merge", func() {
 		})
 
 		It("merges correctly", func() {
-			newMap, err := Merge(targetMap, sourceMap, NewOptions())
+			merged, err := Merge(targetMap, sourceMap, NewOptions())
 
 			Expect(err).ToNot(HaveOccurred())
+			newMap, ok := merged.(map[string]interface{})
+			Expect(ok).To(BeTrue())
 
 			jsonB, errJson := json.Marshal(newMap)
 			Expect(errJson).ToNot(HaveOccurred())
@@ -131,7 +113,15 @@ var _ = Describe("merge", func() {
 
 			opts := NewOptions()
 			opts.Overwrite = false
-			newMap, err = Merge(targetMap, sourceMap, opts)
+
+			var (
+				merged interface{}
+				ok     bool
+			)
+
+			merged, err = Merge(targetMap, sourceMap, opts)
+			newMap, ok = merged.(map[string]interface{})
+			Expect(ok).To(BeTrue())
 		})
 
 		It("does not error", func() {
@@ -191,18 +181,10 @@ var _ = Describe("merge", func() {
 	Context("happy path specific types", func() {
 		DescribeTable("basic types",
 			func(target, source interface{}) {
-				targetMap = map[string]interface{}{
-					testKey: target,
-				}
-
-				sMap := map[string]interface{}{
-					testKey: source,
-				}
-
-				newMap, err := Merge(targetMap, sMap, NewOptions())
+				merged, err := Merge(target, source, NewOptions())
 
 				Expect(err).ToNot(HaveOccurred())
-				Expect(newMap[testKey]).To(Equal(sMap[testKey]))
+				Expect(merged).To(Equal(source))
 			},
 			Entry("overwrites string",
 				"wrong",
@@ -223,6 +205,10 @@ var _ = Describe("merge", func() {
 		)
 
 		Context("merge map", func() {
+			const (
+				testKey = "theKey"
+			)
+
 			It("merges correctly", func() {
 				targetMap = map[string]interface{}{
 					testKey: map[string]interface{}{"foo": "unchanged", "bar": "orig"},
@@ -232,8 +218,11 @@ var _ = Describe("merge", func() {
 					testKey: map[string]interface{}{"bar": "newVal", "baz": "added"},
 				}
 
-				mergedMap, err := Merge(targetMap, sourceMap, NewOptions())
+				merged, err := Merge(targetMap, sourceMap, NewOptions())
 				Expect(err).ToNot(HaveOccurred())
+
+				mergedMap, ok := merged.(map[string]interface{})
+				Expect(ok).To(BeTrue())
 
 				dataMap, ok := mergedMap[testKey].(map[string]interface{})
 				Expect(ok).To(BeTrue())
@@ -244,17 +233,14 @@ var _ = Describe("merge", func() {
 			})
 		})
 
-		Context("nil target map", func() {
+		Context("nil target", func() {
 			It("merges correctly", func() {
-				targetMap = nil
+				source := "bar"
 
-				sourceMap = map[string]interface{}{"bar": "newVal", "baz": "added"}
-
-				mergedMap, err := Merge(targetMap, sourceMap, NewOptions())
+				merged, err := Merge(nil, source, NewOptions())
 				Expect(err).ToNot(HaveOccurred())
 
-				Expect(mergedMap["bar"]).To(Equal("newVal"))
-				Expect(mergedMap["baz"]).To(Equal("added"))
+				Expect(merged).To(Equal("bar"))
 			})
 		})
 
@@ -264,18 +250,14 @@ var _ = Describe("merge", func() {
 
 		Context("merge slice", func() {
 			It("merges correctly", func() {
-				targetMap = map[string]interface{}{
-					testKey: []interface{}{"unchanged", 0},
-				}
+				target := []interface{}{"unchanged", 0}
 
-				sourceMap = map[string]interface{}{
-					testKey: []interface{}{"added", 1},
-				}
+				source := []interface{}{"added", 1}
 
-				mergedMap, err := Merge(targetMap, sourceMap, NewOptions())
+				merged, err := Merge(target, source, NewOptions())
 				Expect(err).ToNot(HaveOccurred())
 
-				dataSlice, ok := mergedMap[testKey].([]interface{})
+				dataSlice, ok := merged.([]interface{})
 				Expect(ok).To(BeTrue())
 
 				Expect(len(dataSlice)).To(Equal(4))
@@ -288,20 +270,14 @@ var _ = Describe("merge", func() {
 
 		Context("nil source value", func() {
 			It("doesnt error", func() {
-				targetMap = map[string]interface{}{
-					testKey: 0,
-				}
+				target := "foo"
 
-				sourceMap = map[string]interface{}{
-					testKey: nil,
-				}
-
-				mergedMap, err := Merge(targetMap, sourceMap, NewOptions())
+				merged, err := Merge(target, nil, NewOptions())
 				Expect(err).ToNot(HaveOccurred())
 
-				origVal, ok := mergedMap[testKey].(int)
+				origVal, ok := merged.(string)
 				Expect(ok).To(BeTrue())
-				Expect(origVal).To(Equal(0))
+				Expect(origVal).To(Equal("foo"))
 			})
 		})
 	})
@@ -309,23 +285,18 @@ var _ = Describe("merge", func() {
 	Context("failure modes", func() {
 		Context("merge func returns error", func() {
 			It("returns an error", func() {
-				targetMap = map[string]interface{}{
-					testKey: errors.New("some err"),
-				}
-
-				sourceMap = map[string]interface{}{
-					testKey: errors.New("other err"),
-				}
+				target := errors.New("some err")
+				source := errors.New("other err")
 
 				opts := NewOptions()
-				// define a merge func that always errors
+				// define a merge func that always errors for the error type
 				opts.MergeFuncs.SetTypeMergeFunc(
 					reflect.TypeOf(errors.New("")),
 					func(t, s interface{}, o *Options) (interface{}, error) {
 						return nil, errors.New("returns error")
 					},
 				)
-				_, err := Merge(targetMap, sourceMap, opts)
+				_, err := Merge(target, source, opts)
 
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("returns error"))
@@ -334,6 +305,20 @@ var _ = Describe("merge", func() {
 
 		Context("type mismatch", func() {
 			It("returns an error", func() {
+				target := 0
+				source := ""
+
+				_, err := Merge(target, source, NewOptions())
+
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("Types do not match"))
+			})
+		})
+
+		Context("type mismatch deeper in the tree", func() {
+			It("returns an error", func() {
+				testKey := "theKey"
+
 				targetMap = map[string]interface{}{
 					testKey: 0,
 				}
@@ -348,11 +333,101 @@ var _ = Describe("merge", func() {
 				Expect(err.Error()).To(ContainSubstring("Types do not match"))
 			})
 		})
+	})
+})
 
-		Context("type mismatch deeper in the tree", func() {
-			It("returns an error", func() {
-				//TODO
-			})
+var _ = Describe("MergeMapStrIFace", func() {
+	var (
+		targetMap, sourceMap map[string]interface{}
+		newMap               map[string]interface{}
+		err                  error
+	)
+
+	BeforeEach(func() {
+		targetMap = map[string]interface{}{
+			"A": "original",
+			"B": 1,
+			"C": map[string]interface{}{"foo": "unchanged", "bar": "orig"},
+			"D": []interface{}{"unchanged", 0},
+		}
+
+		sourceMap = map[string]interface{}{
+			"A": "overwritten",
+			"B": 2,
+			"C": map[string]interface{}{"bar": "newVal", "baz": "added"},
+			"D": []interface{}{"added", 1},
+			"E": "inserted",
+		}
+	})
+
+	Context("happy path", func() {
+		JustBeforeEach(func() {
+			opts := NewOptions()
+			opts.Overwrite = false
+
+			newMap, err = MergeMapStrIface(targetMap, sourceMap, opts)
+		})
+
+		It("does not error", func() {
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		It("does not overwrite a top level string", func() {
+			Expect(newMap["A"]).To(Equal("original"))
+		})
+
+		It("does not overwrite a top level int", func() {
+			Expect(newMap["B"]).To(Equal(1))
+		})
+
+		It("inserts a new top level string", func() {
+			Expect(newMap["E"]).To(Equal("inserted"))
+		})
+	})
+
+	Context("Merge fails", func() {
+		BeforeEach(func() {
+			targetMap["F"] = errors.New("some err")
+			sourceMap["F"] = errors.New("other err")
+
+			opts := NewOptions()
+			// define a merge func that always errors for the error type
+			opts.MergeFuncs.SetTypeMergeFunc(
+				reflect.TypeOf(errors.New("")),
+				func(t, s interface{}, o *Options) (interface{}, error) {
+					return nil, errors.New("returns error")
+				},
+			)
+
+			newMap, err = MergeMapStrIface(targetMap, sourceMap, opts)
+		})
+
+		It("returns an error", func() {
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("returns error"))
+		})
+	})
+
+	Context("merge returns non-map", func() {
+		BeforeEach(func() {
+			targetMap["F"] = errors.New("some err")
+			sourceMap["F"] = errors.New("other err")
+
+			opts := NewOptions()
+			// define a merge func that returns wrong type
+			opts.MergeFuncs.SetTypeMergeFunc(
+				reflect.TypeOf(map[string]interface{}{}),
+				func(t, s interface{}, o *Options) (interface{}, error) {
+					return "a string", nil
+				},
+			)
+
+			_, err = MergeMapStrIface(targetMap, sourceMap, opts)
+		})
+
+		It("returns an error", func() {
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("Merge failed. Expected map[string]interface{} but got string"))
 		})
 	})
 })
