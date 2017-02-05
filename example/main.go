@@ -15,7 +15,7 @@ func init() {
 
 func main() {
 	fmt.Println("Simple merge")
-	Simple()
+	SimpleMap()
 
 	fmt.Println()
 	fmt.Println("Custom merge func")
@@ -30,7 +30,7 @@ func main() {
 	FromJSON()
 }
 
-func Simple() {
+func SimpleMap() {
 	targetMap := map[string]interface{}{
 		"A": "wrong",
 		"B": 1,
@@ -45,7 +45,7 @@ func Simple() {
 		"D": []interface{}{"added", 1},
 	}
 
-	newMap, err := merge.Merge(targetMap, sourceMap, merge.NewOptions())
+	newMap, err := merge.MergeMapStrIface(targetMap, sourceMap, merge.NewOptions())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -89,7 +89,7 @@ func CustomMerge() {
 		},
 	)
 
-	newMap, err := merge.Merge(targetMap, sourceMap, opts)
+	newMap, err := merge.MergeMapStrIface(targetMap, sourceMap, opts)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -112,7 +112,7 @@ func NoOverwrite() {
 
 	opts := merge.NewOptions()
 	opts.Overwrite = false
-	newMap, err := merge.Merge(targetMap, sourceMap, opts)
+	newMap, err := merge.MergeMapStrIface(targetMap, sourceMap, opts)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -120,61 +120,52 @@ func NoOverwrite() {
 	util.MarshalIndentPrint(newMap)
 }
 
-type Foo struct {
-	A string             `json:"a,omitempty"`
-	B int64              `json:"b,omitempty"`
-	C map[string]string  `json:"c,omitempty"`
-	D *map[string]string `json:"d,omitempty"`
-	E []string           `json:"e,omitempty"`
-	F []int              `json:"f,omitempty"`
-}
-
 func FromJSON() {
-	targetFoo := Foo{
-		A: "wrong",
-		B: 1,
-		C: map[string]string{"foo": "unchanged", "bar": "orig"},
-		D: &map[string]string{"foo": "unchanged", "bar": "orig"},
-		E: []string{"old"},
-		F: []int{1},
-	}
+	type jsonString string
 
-	sourceFoo := Foo{
-		A: "correct",
-		B: 2,
-		C: map[string]string{"bar": "newVal", "safe": "added"},
-		D: &map[string]string{"bar": "newVal", "safe": "added"},
-		E: []string{"new"},
-	}
+	var targetJSON jsonString = `
+	{
+	  "a": "wrong",
+	  "b": 1,
+	  "c": {"bar": "orig", "foo": "unchanged"},
+	  "d": ["old"],
+	  "e": [1]
+	}`
 
-	targetMap, err := targetFoo.toMapViaJSON()
-	if err != nil {
-		log.Fatal(err)
-	}
+	var sourceJSON jsonString = `
+	{
+	  "a": "correct",
+	  "b": 2,
+	  "c": {"bar": "newVal", "safe": "added"},
+	  "d": ["new"]
+	}`
 
-	sourceMap, err := sourceFoo.toMapViaJSON()
-	if err != nil {
-		log.Fatal(err)
-	}
+	opts := merge.NewOptions()
+	opts.MergeFuncs.SetTypeMergeFunc(
+		reflect.TypeOf(jsonString("")),
+		// merge two json strings by unmarshalling them to maps
+		func(t, s interface{}, o *merge.Options) (interface{}, error) {
+			targetStr, _ := t.(jsonString)
+			sourceStr, _ := s.(jsonString)
 
-	resultMap, err := merge.Merge(targetMap, sourceMap, merge.NewOptions())
+			targetMap := map[string]interface{}{}
+			if err := json.Unmarshal([]byte(targetStr), &targetMap); err != nil {
+				return nil, err
+			}
+
+			sourceMap := map[string]interface{}{}
+			if err := json.Unmarshal([]byte(sourceStr), &sourceMap); err != nil {
+				return nil, err
+			}
+
+			return merge.MergeMapStrIface(targetMap, sourceMap, o)
+		},
+	)
+
+	resultMap, err := merge.Merge(targetJSON, sourceJSON, opts)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	util.MarshalIndentPrint(resultMap)
-}
-
-func (f *Foo) toMapViaJSON() (map[string]interface{}, error) {
-	jsonBody, err := json.Marshal(f)
-	if err != nil {
-		return nil, err
-	}
-
-	resultMap := &map[string]interface{}{}
-	if err := json.Unmarshal(jsonBody, resultMap); err != nil {
-		return nil, err
-	}
-
-	return *resultMap, nil
 }
