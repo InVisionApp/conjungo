@@ -23,10 +23,16 @@ func newFuncSelector() *funcSelector {
 }
 
 func (f *funcSelector) SetTypeMergeFunc(t reflect.Type, mf MergeFunc) {
+	if nil == f.typeFuncs {
+		f.typeFuncs = map[reflect.Type]MergeFunc{}
+	}
 	f.typeFuncs[t] = mf
 }
 
 func (f *funcSelector) SetKindMergeFunc(k reflect.Kind, mf MergeFunc) {
+	if nil == f.kindFuncs {
+		f.kindFuncs = map[reflect.Kind]MergeFunc{}
+	}
 	f.kindFuncs[k] = mf
 }
 
@@ -35,6 +41,9 @@ func (f *funcSelector) SetDefaultMergeFunc(mf MergeFunc) {
 }
 
 // Get func must always return a function.
+// First looks for a merge func defined for its type. Type is the most specific way to categorize something,
+// for example, struct type foo of package bar or map[string]string. Next it looks for a merge func defined for its
+// kind, for example, struct or map. At this point, if nothing matches, it will fall back to the default merge definition.
 func (f *funcSelector) GetFunc(i interface{}) MergeFunc {
 	// prioritize a specific 'type' definition
 	ti := reflect.TypeOf(i)
@@ -47,7 +56,11 @@ func (f *funcSelector) GetFunc(i interface{}) MergeFunc {
 		return fx
 	}
 
-	return f.defaultFunc
+	if f.defaultFunc != nil {
+		return f.defaultFunc
+	}
+
+	return defaultMergeFunc
 }
 
 // A function which defines how two items of the same type are merged together.
@@ -56,6 +69,8 @@ func (f *funcSelector) GetFunc(i interface{}) MergeFunc {
 // written to directly to the target map, as long as there is no error.
 type MergeFunc func(interface{}, interface{}, *Options) (interface{}, error)
 
+// The most basic merge function to be used as default behavior. In overwrite mode, it returns the source. Otherwise,
+// it returns the target.
 func defaultMergeFunc(t, s interface{}, o *Options) (interface{}, error) {
 	if o.Overwrite {
 		return s, nil
