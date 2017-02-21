@@ -244,10 +244,6 @@ var _ = Describe("Merge", func() {
 			})
 		})
 
-		Context("map within a map", func() {
-			//TODO
-		})
-
 		Context("merge slice", func() {
 			It("merges correctly", func() {
 				target := []interface{}{"unchanged", 0}

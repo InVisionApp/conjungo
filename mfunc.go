@@ -1,6 +1,7 @@
 package merge
 
 import (
+	"fmt"
 	"github.com/Sirupsen/logrus"
 	"reflect"
 )
@@ -92,7 +93,7 @@ func mergeMap(t, s interface{}, o *Options) (interface{}, error) {
 		logrus.Debugf("MERGE T<>S '%s' :: %v <> %v", k, mapT[k], valS)
 		val, err := merge(mapT[k], valS, o)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("key '%s': %v", k, err)
 		}
 		mapT[k] = val
 	}

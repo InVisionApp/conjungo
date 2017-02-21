@@ -205,22 +205,28 @@ var _ = Describe("defaultMergeFunc", func() {
 })
 
 var _ = Describe("mergeMap", func() {
+	var (
+		targetMap, sourceMap map[string]interface{}
+	)
+
+	BeforeEach(func() {
+		targetMap = map[string]interface{}{
+			"A": "wrong",
+			"B": 1,
+			"C": map[string]interface{}{"foo": "unchanged", "bar": "orig"},
+			"D": []interface{}{"unchanged", 0},
+		}
+
+		sourceMap = map[string]interface{}{
+			"A": "correct",
+			"B": 2,
+			"C": map[string]interface{}{"bar": "newVal", "baz": "added"},
+			"D": []interface{}{"added", 1},
+		}
+	})
+
 	Context("happy path smoke test", func() {
 		It("merges correctly", func() {
-			targetMap := map[string]interface{}{
-				"A": "wrong",
-				"B": 1,
-				"C": map[string]interface{}{"foo": "unchanged", "bar": "orig"},
-				"D": []interface{}{"unchanged", 0},
-			}
-
-			sourceMap := map[string]interface{}{
-				"A": "correct",
-				"B": 2,
-				"C": map[string]interface{}{"bar": "newVal", "baz": "added"},
-				"D": []interface{}{"added", 1},
-			}
-
 			merged, err := mergeMap(targetMap, sourceMap, NewOptions())
 
 			Expect(err).ToNot(HaveOccurred())
@@ -248,40 +254,241 @@ var _ = Describe("mergeMap", func() {
 	})
 
 	Context("overwrite is true", func() {
+		It("overwrites", func() {
+			opt := NewOptions()
+			opt.Overwrite = true
+			merged, err := mergeMap(targetMap, sourceMap, opt)
 
+			Expect(err).ToNot(HaveOccurred())
+
+			mergedMap, ok := merged.(map[string]interface{})
+			Expect(ok).To(BeTrue())
+			Expect(mergedMap["A"]).To(Equal("correct"))
+			Expect(mergedMap["B"]).To(Equal(2))
+
+			subMap, ok := mergedMap["C"].(map[string]interface{})
+			Expect(ok).To(BeTrue())
+			Expect(subMap["foo"]).To(Equal("unchanged"))
+			Expect(subMap["bar"]).To(Equal("newVal"))
+			Expect(subMap["baz"]).To(Equal("added"))
+		})
 	})
 
 	Context("overwrite is false", func() {
+		It("doesnt overwrite", func() {
+			opt := NewOptions()
+			opt.Overwrite = false
+			merged, err := mergeMap(targetMap, sourceMap, opt)
 
+			Expect(err).ToNot(HaveOccurred())
+
+			mergedMap, ok := merged.(map[string]interface{})
+			Expect(ok).To(BeTrue())
+			Expect(mergedMap["A"]).To(Equal("wrong"))
+			Expect(mergedMap["B"]).To(Equal(1))
+
+			subMap, ok := mergedMap["C"].(map[string]interface{})
+			Expect(ok).To(BeTrue())
+			Expect(subMap["foo"]).To(Equal("unchanged"))
+			Expect(subMap["bar"]).To(Equal("orig"))
+			Expect(subMap["baz"]).To(Equal("added"))
+		})
 	})
 
 	Context("empty target", func() {
+		It("equals source", func() {
+			merged, err := mergeMap(map[string]interface{}{}, sourceMap, NewOptions())
 
+			Expect(err).ToNot(HaveOccurred())
+			Expect(merged).To(Equal(sourceMap))
+		})
 	})
 
 	Context("empty source", func() {
+		It("equals target", func() {
+			merged, err := mergeMap(targetMap, map[string]interface{}{}, NewOptions())
 
+			Expect(err).ToNot(HaveOccurred())
+			Expect(merged).To(Equal(targetMap))
+		})
+	})
+
+	Context("nil target", func() {
+		It("equals source", func() {
+			merged, err := mergeMap(nil, sourceMap, NewOptions())
+
+			Expect(err).ToNot(HaveOccurred())
+			Expect(merged).To(Equal(sourceMap))
+		})
+	})
+
+	Context("nil source", func() {
+		It("equals target", func() {
+			merged, err := mergeMap(targetMap, nil, NewOptions())
+
+			Expect(err).ToNot(HaveOccurred())
+			Expect(merged).To(Equal(targetMap))
+		})
 	})
 
 	Context("mismatched field types", func() {
+		It("errors", func() {
+			targetMap["A"] = 0
+			_, err := mergeMap(targetMap, sourceMap, NewOptions())
 
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("key 'A': Types do not match: int, string"))
+		})
+
+		Context("submap mismatch", func() {
+			It("errors", func() {
+				targetMap["C"] = map[string]interface{}{"bar": 0, "baz": "added"}
+				_, err := mergeMap(targetMap, sourceMap, NewOptions())
+
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(Equal("key 'C': key 'bar': Types do not match: int, string"))
+			})
+		})
 	})
 })
 
 var _ = Describe("mergeSlice", func() {
-	Context("two populated slices", func() {
+	var (
+		targetSlice, sourceSlice []interface{}
+	)
 
+	BeforeEach(func() {
+		targetSlice = []interface{}{3.6, "unchanged", 0}
+		sourceSlice = []interface{}{1, "added", true}
+	})
+
+	Context("two populated slices", func() {
+		It("merges them", func() {
+			merged, err := mergeSlice(targetSlice, sourceSlice, NewOptions())
+			Expect(err).ToNot(HaveOccurred())
+
+			mergedSlice, ok := merged.([]interface{})
+			Expect(ok).To(BeTrue())
+
+			Expect(mergedSlice).To(And(
+				ContainElement("unchanged"),
+				ContainElement(0),
+				ContainElement("added"),
+				ContainElement(1),
+				ContainElement(3.6),
+				ContainElement(true),
+			))
+		})
 	})
 
 	Context("target slice is empty", func() {
+		It("equals source", func() {
+			merged, err := mergeSlice([]interface{}{}, sourceSlice, NewOptions())
+			Expect(err).ToNot(HaveOccurred())
 
+			mergedSlice, ok := merged.([]interface{})
+			Expect(ok).To(BeTrue())
+
+			Expect(len(mergedSlice)).To(Equal(len(sourceSlice)))
+			Expect(mergedSlice).To(And(
+				ContainElement("added"),
+				ContainElement(1),
+				ContainElement(true),
+			))
+			Expect(mergedSlice).ToNot(And(
+				ContainElement("unchanged"),
+				ContainElement(0),
+				ContainElement(3.6),
+			))
+		})
 	})
 
 	Context("source slice is empty", func() {
+		It("equals target", func() {
+			merged, err := mergeSlice(targetSlice, []interface{}{}, NewOptions())
+			Expect(err).ToNot(HaveOccurred())
 
+			mergedSlice, ok := merged.([]interface{})
+			Expect(ok).To(BeTrue())
+
+			Expect(len(mergedSlice)).To(Equal(len(targetSlice)))
+			Expect(mergedSlice).To(And(
+				ContainElement("unchanged"),
+				ContainElement(0),
+				ContainElement(3.6),
+			))
+			Expect(mergedSlice).ToNot(And(
+				ContainElement("added"),
+				ContainElement(1),
+				ContainElement(true),
+			))
+		})
+	})
+
+	Context("target slice is nil", func() {
+		It("equals source", func() {
+			merged, err := mergeSlice(nil, sourceSlice, NewOptions())
+			Expect(err).ToNot(HaveOccurred())
+
+			mergedSlice, ok := merged.([]interface{})
+			Expect(ok).To(BeTrue())
+
+			Expect(len(mergedSlice)).To(Equal(len(sourceSlice)))
+			Expect(mergedSlice).To(And(
+				ContainElement("added"),
+				ContainElement(1),
+				ContainElement(true),
+			))
+			Expect(mergedSlice).ToNot(And(
+				ContainElement("unchanged"),
+				ContainElement(0),
+				ContainElement(3.6),
+			))
+		})
+	})
+
+	Context("source slice is nil", func() {
+		It("equals target", func() {
+			merged, err := mergeSlice(targetSlice, nil, NewOptions())
+			Expect(err).ToNot(HaveOccurred())
+
+			mergedSlice, ok := merged.([]interface{})
+			Expect(ok).To(BeTrue())
+
+			Expect(len(mergedSlice)).To(Equal(len(targetSlice)))
+			Expect(mergedSlice).To(And(
+				ContainElement("unchanged"),
+				ContainElement(0),
+				ContainElement(3.6),
+			))
+			Expect(mergedSlice).ToNot(And(
+				ContainElement("added"),
+				ContainElement(1),
+				ContainElement(true),
+			))
+		})
 	})
 
 	Context("both slices are empty", func() {
+		It("returns empty slice", func() {
+			merged, err := mergeSlice([]interface{}{}, []interface{}{}, NewOptions())
+			Expect(err).ToNot(HaveOccurred())
+
+			mergedSlice, ok := merged.([]interface{})
+			Expect(ok).To(BeTrue())
+
+			Expect(mergedSlice).To(BeEmpty())
+		})
+
+		It("returns empty slice", func() {
+			merged, err := mergeSlice(nil, nil, NewOptions())
+			Expect(err).ToNot(HaveOccurred())
+
+			mergedSlice, ok := merged.([]interface{})
+			Expect(ok).To(BeTrue())
+
+			Expect(mergedSlice).To(BeEmpty())
+		})
 
 	})
 })
