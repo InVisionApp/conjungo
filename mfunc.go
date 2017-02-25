@@ -106,3 +106,46 @@ func mergeSlice(t, s interface{}, o *Options) (interface{}, error) {
 	sliceS, _ := s.([]interface{})
 	return append(sliceT, sliceS...), nil
 }
+
+// This func is designed to be called by merge().
+// It should not be used on its own because it will panic.
+func mergeStruct(t, s interface{}, o *Options) (interface{}, error) {
+	// accept pointer values, but dereference them
+	valT := reflect.Indirect(reflect.ValueOf(t))
+	valS := reflect.Indirect(reflect.ValueOf(s))
+	kindT := valT.Kind()
+	kindS := valS.Kind()
+
+	newT := reflect.New(valT.Type()).Elem() //a new instance of the struct type that can be set
+
+	okT := kindT == reflect.Struct
+	okS := kindS == reflect.Struct
+	if !okT || !okS {
+		return nil, fmt.Errorf("got non-struct kind (tagret: %v; source: %v)", kindT, kindS)
+	}
+
+	for i := 0; i < valS.NumField(); i++ {
+		fieldT := newT.Field(i)
+		logrus.Debug("merging struct field %s", fieldT)
+
+		//should never happen because its created above. Maybe remove?
+		if !fieldT.IsValid() || !fieldT.CanSet() {
+			return nil, fmt.Errorf("problem with field(%s) valid: %v; can set: %v",
+				newT.Type().Field(i).Name, fieldT.IsValid(), fieldT.CanSet())
+		}
+
+		merged, err := merge(valT.Field(i).Interface(), valS.Field(i).Interface(), o)
+		if err != nil {
+			return nil, err //TODO better error
+		}
+
+		merVal := reflect.ValueOf(merged)
+		if fieldT.Type() != merVal.Type() {
+			return nil, fmt.Errorf("types dont match %v <> %v", fieldT.Type(), merVal.Type())
+		}
+
+		fieldT.Set(merVal)
+	}
+
+	return newT.Interface(), nil
+}

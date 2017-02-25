@@ -4,6 +4,7 @@ import (
 	"reflect"
 
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 )
 
@@ -489,6 +490,209 @@ var _ = Describe("mergeSlice", func() {
 
 			Expect(mergedSlice).To(BeEmpty())
 		})
+	})
+})
 
+var _ = Describe("mergeStruct", func() {
+	type Foo struct {
+		Name    string
+		Size    int
+		Special bool
+	}
+
+	var (
+		targetStruct, sourceStruct Foo
+	)
+
+	Context("two populated structs", func() {
+		BeforeEach(func() {
+			targetStruct = Foo{
+				Name:    "target",
+				Size:    2,
+				Special: false,
+			}
+
+			sourceStruct = Foo{
+				Name:    "source",
+				Size:    4,
+				Special: true,
+			}
+		})
+
+		It("merges correctly", func() {
+			merged, err := mergeStruct(&targetStruct, &sourceStruct, NewOptions())
+			Expect(err).ToNot(HaveOccurred())
+			Expect(merged).ToNot(BeNil())
+			mergedStruct, ok := merged.(Foo)
+			Expect(ok).To(BeTrue())
+			Expect(mergedStruct.Name).To(Equal(sourceStruct.Name))
+			Expect(mergedStruct.Size).To(Equal(sourceStruct.Size))
+			Expect(mergedStruct.Special).To(Equal(sourceStruct.Special))
+			Expect(targetStruct.Name).To(Equal("target"))
+		})
+
+		DescribeTable("pointer combinations",
+			func(f func() (interface{}, error)) {
+				merged, err := f()
+				Expect(err).ToNot(HaveOccurred())
+				Expect(merged).ToNot(BeNil())
+				mergedStruct, ok := merged.(Foo)
+				Expect(ok).To(BeTrue())
+				Expect(mergedStruct.Name).To(Equal(sourceStruct.Name))
+				Expect(mergedStruct.Size).To(Equal(sourceStruct.Size))
+				Expect(mergedStruct.Special).To(Equal(sourceStruct.Special))
+				Expect(targetStruct.Name).To(Equal("target"))
+			},
+			Entry(
+				"pointer: T:n S:n",
+				func() (interface{}, error) {
+					return mergeStruct(targetStruct, sourceStruct, NewOptions())
+				},
+			),
+			Entry(
+				"pointer: T:y S:y",
+				func() (interface{}, error) {
+					return mergeStruct(&targetStruct, &sourceStruct, NewOptions())
+				},
+			),
+			Entry(
+				"pointer: T:y S:n",
+				func() (interface{}, error) {
+					return mergeStruct(&targetStruct, sourceStruct, NewOptions())
+				},
+			),
+			Entry(
+				"pointer: T:n S:y",
+				func() (interface{}, error) {
+					return mergeStruct(targetStruct, &sourceStruct, NewOptions())
+				},
+			),
+		)
+	})
+
+	Context("partially populated", func() {
+		Context("target is empty", func() {
+			It("returns source", func() {
+				merged, err := mergeStruct(Foo{}, sourceStruct, NewOptions())
+				Expect(err).ToNot(HaveOccurred())
+				Expect(merged).ToNot(BeNil())
+				mergedStruct, ok := merged.(Foo)
+				Expect(ok).To(BeTrue())
+				Expect(mergedStruct.Name).To(Equal(sourceStruct.Name))
+				Expect(mergedStruct.Size).To(Equal(sourceStruct.Size))
+				Expect(mergedStruct.Special).To(Equal(sourceStruct.Special))
+			})
+		})
+		Context("source is empty", func() {
+			It("returns empty", func() {
+				emptyFoo := Foo{}
+				merged, err := mergeStruct(targetStruct, emptyFoo, NewOptions())
+				Expect(err).ToNot(HaveOccurred())
+				Expect(merged).ToNot(BeNil())
+				mergedStruct, ok := merged.(Foo)
+				Expect(ok).To(BeTrue())
+				Expect(mergedStruct.Name).To(Equal(emptyFoo.Name))
+				Expect(mergedStruct.Size).To(Equal(emptyFoo.Size))
+				Expect(mergedStruct.Special).To(Equal(emptyFoo.Special))
+			})
+		})
+	})
+
+	// These are tested through the merge() func because that is what protects against panics
+	Context("invalid entries", func() {
+		var opt *Options
+
+		BeforeEach(func() {
+			opt = NewOptions()
+			opt.MergeFuncs.SetKindMergeFunc(reflect.Struct, mergeStruct)
+		})
+
+		Context("nils", func() {
+			Context("target nil", func() {
+				It("return source", func() {
+					merged, err := merge(nil, sourceStruct, opt)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(merged).ToNot(BeNil())
+					mergedStruct, ok := merged.(Foo)
+					Expect(ok).To(BeTrue())
+					Expect(mergedStruct.Name).To(Equal(sourceStruct.Name))
+					Expect(mergedStruct.Size).To(Equal(sourceStruct.Size))
+					Expect(mergedStruct.Special).To(Equal(sourceStruct.Special))
+				})
+			})
+
+			Context("source nil", func() {
+				It("return target", func() {
+					merged, err := merge(targetStruct, nil, opt)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(merged).ToNot(BeNil())
+					mergedStruct, ok := merged.(Foo)
+					Expect(ok).To(BeTrue())
+					Expect(mergedStruct.Name).To(Equal(targetStruct.Name))
+					Expect(mergedStruct.Size).To(Equal(targetStruct.Size))
+					Expect(mergedStruct.Special).To(Equal(targetStruct.Special))
+				})
+
+			})
+		})
+
+		Context("struct types do not match", func() {
+			It("errors", func() {
+				type Bar struct {
+					Baz float64
+				}
+				merged, err := merge(targetStruct, Bar{}, opt)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("Types do not match: merge.Foo, merge.Bar"))
+				Expect(merged).To(BeNil())
+			})
+		})
+	})
+
+	Context("non-struct type", func() {
+		It("errors", func() {
+			merged, err := mergeStruct(targetStruct, "a string", NewOptions())
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("got non-struct kind (tagret: struct; source: string)"))
+			Expect(merged).To(BeNil())
+		})
+	})
+
+	Context("private fields on struct", func() {
+		type Baz struct {
+			Public  string
+			private string
+		}
+		var targetBaz, sourceBaz Baz
+
+		BeforeEach(func() {
+			targetBaz = Baz{
+				Public:  "target",
+				private: "target",
+			}
+			sourceBaz = Baz{
+				Public:  "source",
+				private: "source",
+			}
+		})
+
+		It("errors", func() {
+			merged, err := mergeStruct(targetBaz, sourceBaz, NewOptions())
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("problem with field(private) valid: true; can set: false"))
+			Expect(merged).To(BeNil())
+		})
+	})
+
+	Context("merge error on field", func() {
+		It("returns error", func() {
+			//TODO
+		})
+	})
+
+	Context("receives wrong type on merge", func() {
+		It("errors", func() {
+			//TODO
+		})
 	})
 })
