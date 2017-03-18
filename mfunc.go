@@ -19,7 +19,9 @@ func newFuncSelector() *funcSelector {
 			reflect.TypeOf(map[string]interface{}{}): mergeMap, //recursion becomes less obvious but allows custom handler
 			reflect.TypeOf([]interface{}{}):          mergeSlice,
 		},
-		kindFuncs:   map[reflect.Kind]MergeFunc{},
+		kindFuncs: map[reflect.Kind]MergeFunc{
+			reflect.Struct: mergeStruct,
+		},
 		defaultFunc: defaultMergeFunc,
 	}
 }

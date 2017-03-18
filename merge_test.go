@@ -34,6 +34,13 @@ var _ = Describe("Options", func() {
 })
 
 var _ = Describe("Merge", func() {
+	type Foo struct {
+		Name    string
+		Size    int
+		Special bool
+		Tags    []interface{}
+	}
+
 	var (
 		targetMap, sourceMap map[string]interface{}
 	)
@@ -45,6 +52,7 @@ var _ = Describe("Merge", func() {
 				"B": 1,
 				"C": map[string]interface{}{"foo": "unchanged", "bar": "orig"},
 				"D": []interface{}{"unchanged", 0},
+				"E": Foo{Name: "target", Size: 1, Special: false, Tags: []interface{}{"unchanged", 0}},
 			}
 
 			sourceMap = map[string]interface{}{
@@ -52,6 +60,7 @@ var _ = Describe("Merge", func() {
 				"B": 2,
 				"C": map[string]interface{}{"bar": "newVal", "safe": "added"},
 				"D": []interface{}{"added", 1},
+				"E": Foo{Name: "source", Size: 3, Special: true, Tags: []interface{}{"added", 1}},
 			}
 		})
 
@@ -78,7 +87,18 @@ var _ = Describe("Merge", func() {
 				0,
 				"added",
 				1
-			  ]
+			  ],
+			  "E": {
+				"Name": "source",
+				"Size": 3,
+				"Special": true,
+				"Tags": [
+				  "unchanged",
+				  0,
+				  "added",
+				  1
+				]
+			  }
 			}`
 			Expect(jsonB).To(MatchJSON(expectedJSON))
 		})

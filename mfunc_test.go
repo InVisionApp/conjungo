@@ -25,6 +25,10 @@ var _ = Describe("newFuncSelector", func() {
 		sliceMerge, sliceOK := fs.typeFuncs[reflect.TypeOf([]interface{}{})]
 		Expect(sliceOK).To(BeTrue())
 		Expect(sliceMerge).ToNot(BeNil())
+
+		structMerge, structOK := fs.kindFuncs[reflect.Struct]
+		Expect(structOK).To(BeTrue())
+		Expect(structMerge).ToNot(BeNil())
 	})
 
 	It("has kind mergeFuncs map", func() {
@@ -583,6 +587,7 @@ var _ = Describe("mergeStruct", func() {
 				Expect(mergedStruct.Special).To(Equal(sourceStruct.Special))
 			})
 		})
+
 		Context("source is empty", func() {
 			It("returns empty", func() {
 				emptyFoo := Foo{}
