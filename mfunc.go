@@ -2,8 +2,9 @@ package merge
 
 import (
 	"fmt"
-	"github.com/Sirupsen/logrus"
 	"reflect"
+
+	"github.com/Sirupsen/logrus"
 )
 
 type funcSelector struct {
@@ -136,7 +137,8 @@ func mergeStruct(t, s interface{}, o *Options) (interface{}, error) {
 
 		merged, err := merge(valT.Field(i).Interface(), valS.Field(i).Interface(), o)
 		if err != nil {
-			return nil, err //TODO better error
+			return nil, fmt.Errorf("failed to merge field `%s.%s`: %v",
+				newT.Type().Name(), newT.Type().Field(i).Name, err)
 		}
 
 		merVal := reflect.ValueOf(merged)

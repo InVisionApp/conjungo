@@ -685,14 +685,57 @@ var _ = Describe("mergeStruct", func() {
 	})
 
 	Context("merge error on field", func() {
+		type Baz struct {
+			Foo interface{}
+		}
+		var targetBaz, sourceBaz Baz
+
+		BeforeEach(func() {
+			targetBaz = Baz{
+				Foo: "string",
+			}
+			sourceBaz = Baz{
+				Foo: 1,
+			}
+		})
+
 		It("returns error", func() {
-			//TODO
+			merged, err := mergeStruct(targetBaz, sourceBaz, NewOptions())
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("failed to merge field `Baz.Foo`: Types do not match: string, int"))
+			Expect(merged).To(BeNil())
 		})
 	})
 
 	Context("receives wrong type on merge", func() {
+		type Baz struct {
+			Bar string
+		}
+		var (
+			targetBaz, sourceBaz Baz
+			opt                  *Options
+		)
+
+		BeforeEach(func() {
+			opt = NewOptions()
+			// merge func for string returns an int. wont be able to set the field to an int
+			opt.MergeFuncs.SetKindMergeFunc(reflect.String, func(t, s interface{}, o *Options) (interface{}, error) {
+				return 0, nil
+			})
+
+			targetBaz = Baz{
+				Bar: "target",
+			}
+			sourceBaz = Baz{
+				Bar: "source",
+			}
+		})
+
 		It("errors", func() {
-			//TODO
+			merged, err := mergeStruct(targetBaz, sourceBaz, opt)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("types dont match string <> int"))
+			Expect(merged).To(BeNil())
 		})
 	})
 })
