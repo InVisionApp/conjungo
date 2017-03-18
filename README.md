@@ -1,5 +1,7 @@
 #go-merge
 
+[![Build Status](https://travis-ci.com/InVisionApp/go-merge.svg?token=KosA43m1X3ikri8JEukQ&branch=master)](https://travis-ci.com/InVisionApp/go-merge)
+
 A merge utility designed for flexibility and customizability.
 
 Currently supports the merging of two `map[string]interface{}` because this is used for JSON merging.
