@@ -31,7 +31,7 @@ func MergeMapStrIface(target, src map[string]interface{}, opt *Options) (map[str
 	}
 
 	valMap, ok := val.(map[string]interface{})
-	if ok {
+		if ok {
 		return valMap, nil
 	}
 
@@ -52,8 +52,6 @@ func Merge(target, source interface{}, opt *Options) (interface{}, error) {
 func merge(target, src interface{}, opt *Options) (interface{}, error) {
 	valS := reflect.ValueOf(src)
 	valT := reflect.ValueOf(target)
-
-	//logrus.Debugf("MERGE T<>S :: %v (%v) <> %v (%v)", target, typeT, src, typeS)
 
 	// if source is nil, skip
 	if src == nil ||
