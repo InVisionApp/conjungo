@@ -196,6 +196,10 @@ var _ = Describe("Merge", func() {
 				Expect(newSubSlice).To(ContainElement(1))
 			})
 		})
+
+		Context("pointers", func() {
+			//TODO
+		})
 	})
 
 	Context("happy path specific types", func() {
@@ -264,6 +268,57 @@ var _ = Describe("Merge", func() {
 			})
 		})
 
+		Context("nil source value", func() {
+			It("doesnt error", func() {
+				target := "foo"
+
+				merged, err := Merge(target, nil, NewOptions())
+				Expect(err).ToNot(HaveOccurred())
+
+				origVal, ok := merged.(string)
+				Expect(ok).To(BeTrue())
+				Expect(origVal).To(Equal("foo"))
+			})
+		})
+
+		Context("nil source and target value", func() {
+			It("doesnt error", func() {
+				merged, err := Merge(nil, nil, NewOptions())
+				Expect(err).ToNot(HaveOccurred())
+				Expect(merged).To(BeNil())
+			})
+		})
+
+		Context("nil pointer value", func() {
+			Context("source nil", func() {
+				It("doesnt error", func() {
+					target := "foo"
+					var source *string
+
+					merged, err := Merge(&target, source, NewOptions())
+					Expect(err).ToNot(HaveOccurred())
+
+					origVal, ok := merged.(*string)
+					Expect(ok).To(BeTrue())
+					Expect(*origVal).To(Equal("foo"))
+				})
+			})
+
+			Context("target nil", func() {
+				It("doesnt error", func() {
+					source := "foo"
+					var target *string
+
+					merged, err := Merge(target, &source, NewOptions())
+					Expect(err).ToNot(HaveOccurred())
+
+					origVal, ok := merged.(*string)
+					Expect(ok).To(BeTrue())
+					Expect(*origVal).To(Equal("foo"))
+				})
+			})
+		})
+
 		Context("merge slice", func() {
 			It("merges correctly", func() {
 				target := []interface{}{"unchanged", 0}
@@ -281,19 +336,6 @@ var _ = Describe("Merge", func() {
 				Expect(dataSlice).To(ContainElement(0))
 				Expect(dataSlice).To(ContainElement("added"))
 				Expect(dataSlice).To(ContainElement(1))
-			})
-		})
-
-		Context("nil source value", func() {
-			It("doesnt error", func() {
-				target := "foo"
-
-				merged, err := Merge(target, nil, NewOptions())
-				Expect(err).ToNot(HaveOccurred())
-
-				origVal, ok := merged.(string)
-				Expect(ok).To(BeTrue())
-				Expect(origVal).To(Equal("foo"))
 			})
 		})
 	})

@@ -2,8 +2,9 @@ package merge
 
 import (
 	"fmt"
-	"github.com/Sirupsen/logrus"
 	"reflect"
+
+	"github.com/Sirupsen/logrus"
 )
 
 type Options struct {
@@ -45,20 +46,25 @@ func Merge(target, source interface{}, opt *Options) (interface{}, error) {
 }
 
 func merge(target, src interface{}, opt *Options) (interface{}, error) {
-	typeS := reflect.TypeOf(src)
-	typeT := reflect.TypeOf(target)
+	valS := reflect.ValueOf(src)
+	valT := reflect.ValueOf(target)
 
-	logrus.Debugf("MERGE T<>S :: %v (%v) <> %v (%v)", target, typeT, src, typeS)
+	//logrus.Debugf("MERGE T<>S :: %v (%v) <> %v (%v)", target, typeT, src, typeS)
 
 	// if source is nil, skip
-	if src == nil {
+	if src == nil ||
+		valS.Kind() == reflect.Ptr && valS.IsNil() {
 		return target, nil
 	}
 
 	// if target is nil write to it
-	if target == nil {
+	if target == nil ||
+		valT.Kind() == reflect.Ptr && valT.IsNil() {
 		return src, nil
 	}
+
+	typeS := reflect.TypeOf(src)
+	typeT := reflect.TypeOf(target)
 
 	// if types do not match, bail
 	if typeT != typeS {
