@@ -1,14 +1,19 @@
 package merge
 
 import (
+	"context"
 	"fmt"
-	"github.com/Sirupsen/logrus"
 	"reflect"
+
+	"github.com/Sirupsen/logrus"
 )
 
 type Options struct {
 	Overwrite  bool
 	MergeFuncs *funcSelector
+
+	// to be used by merge functions to pass values down into recursive calls freely
+	Context context.Context
 }
 
 func NewOptions() *Options {
@@ -26,7 +31,7 @@ func MergeMapStrIface(target, src map[string]interface{}, opt *Options) (map[str
 	}
 
 	valMap, ok := val.(map[string]interface{})
-	if ok {
+		if ok {
 		return valMap, nil
 	}
 
@@ -45,20 +50,23 @@ func Merge(target, source interface{}, opt *Options) (interface{}, error) {
 }
 
 func merge(target, src interface{}, opt *Options) (interface{}, error) {
-	typeS := reflect.TypeOf(src)
-	typeT := reflect.TypeOf(target)
-
-	logrus.Debugf("MERGE T<>S :: %v (%v) <> %v (%v)", target, typeT, src, typeS)
+	valS := reflect.ValueOf(src)
+	valT := reflect.ValueOf(target)
 
 	// if source is nil, skip
-	if src == nil {
+	if src == nil ||
+		valS.Kind() == reflect.Ptr && valS.IsNil() {
 		return target, nil
 	}
 
 	// if target is nil write to it
-	if target == nil {
+	if target == nil ||
+		valT.Kind() == reflect.Ptr && valT.IsNil() {
 		return src, nil
 	}
+
+	typeS := reflect.TypeOf(src)
+	typeT := reflect.TypeOf(target)
 
 	// if types do not match, bail
 	if typeT != typeS {

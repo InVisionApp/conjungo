@@ -34,6 +34,13 @@ var _ = Describe("Options", func() {
 })
 
 var _ = Describe("Merge", func() {
+	type Foo struct {
+		Name    string
+		Size    int
+		Special bool
+		Tags    []interface{}
+	}
+
 	var (
 		targetMap, sourceMap map[string]interface{}
 	)
@@ -45,6 +52,7 @@ var _ = Describe("Merge", func() {
 				"B": 1,
 				"C": map[string]interface{}{"foo": "unchanged", "bar": "orig"},
 				"D": []interface{}{"unchanged", 0},
+				"E": Foo{Name: "target", Size: 1, Special: false, Tags: []interface{}{"unchanged", 0}},
 			}
 
 			sourceMap = map[string]interface{}{
@@ -52,6 +60,7 @@ var _ = Describe("Merge", func() {
 				"B": 2,
 				"C": map[string]interface{}{"bar": "newVal", "safe": "added"},
 				"D": []interface{}{"added", 1},
+				"E": Foo{Name: "source", Size: 3, Special: true, Tags: []interface{}{"added", 1}},
 			}
 		})
 
@@ -78,7 +87,18 @@ var _ = Describe("Merge", func() {
 				0,
 				"added",
 				1
-			  ]
+			  ],
+			  "E": {
+				"Name": "source",
+				"Size": 3,
+				"Special": true,
+				"Tags": [
+				  "unchanged",
+				  0,
+				  "added",
+				  1
+				]
+			  }
 			}`
 			Expect(jsonB).To(MatchJSON(expectedJSON))
 		})
@@ -176,6 +196,10 @@ var _ = Describe("Merge", func() {
 				Expect(newSubSlice).To(ContainElement(1))
 			})
 		})
+
+		Context("pointers", func() {
+			//TODO
+		})
 	})
 
 	Context("happy path specific types", func() {
@@ -244,6 +268,57 @@ var _ = Describe("Merge", func() {
 			})
 		})
 
+		Context("nil source value", func() {
+			It("doesnt error", func() {
+				target := "foo"
+
+				merged, err := Merge(target, nil, NewOptions())
+				Expect(err).ToNot(HaveOccurred())
+
+				origVal, ok := merged.(string)
+				Expect(ok).To(BeTrue())
+				Expect(origVal).To(Equal("foo"))
+			})
+		})
+
+		Context("nil source and target value", func() {
+			It("doesnt error", func() {
+				merged, err := Merge(nil, nil, NewOptions())
+				Expect(err).ToNot(HaveOccurred())
+				Expect(merged).To(BeNil())
+			})
+		})
+
+		Context("nil pointer value", func() {
+			Context("source nil", func() {
+				It("doesnt error", func() {
+					target := "foo"
+					var source *string
+
+					merged, err := Merge(&target, source, NewOptions())
+					Expect(err).ToNot(HaveOccurred())
+
+					origVal, ok := merged.(*string)
+					Expect(ok).To(BeTrue())
+					Expect(*origVal).To(Equal("foo"))
+				})
+			})
+
+			Context("target nil", func() {
+				It("doesnt error", func() {
+					source := "foo"
+					var target *string
+
+					merged, err := Merge(target, &source, NewOptions())
+					Expect(err).ToNot(HaveOccurred())
+
+					origVal, ok := merged.(*string)
+					Expect(ok).To(BeTrue())
+					Expect(*origVal).To(Equal("foo"))
+				})
+			})
+		})
+
 		Context("merge slice", func() {
 			It("merges correctly", func() {
 				target := []interface{}{"unchanged", 0}
@@ -261,19 +336,6 @@ var _ = Describe("Merge", func() {
 				Expect(dataSlice).To(ContainElement(0))
 				Expect(dataSlice).To(ContainElement("added"))
 				Expect(dataSlice).To(ContainElement(1))
-			})
-		})
-
-		Context("nil source value", func() {
-			It("doesnt error", func() {
-				target := "foo"
-
-				merged, err := Merge(target, nil, NewOptions())
-				Expect(err).ToNot(HaveOccurred())
-
-				origVal, ok := merged.(string)
-				Expect(ok).To(BeTrue())
-				Expect(origVal).To(Equal("foo"))
 			})
 		})
 	})
