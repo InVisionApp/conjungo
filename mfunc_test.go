@@ -603,6 +603,91 @@ var _ = Describe("mergeStruct", func() {
 		})
 	})
 
+	Context("fields that need to be merged", func() {
+		Context("slice fields", func() {
+			type Baz struct {
+				Slice []interface{}
+			}
+			var targetBaz, sourceBaz Baz
+
+			BeforeEach(func() {
+				targetBaz = Baz{
+					Slice: []interface{}{"unchanged", 0},
+				}
+				sourceBaz = Baz{
+					Slice: []interface{}{"added", 1},
+				}
+			})
+
+			It("merges them", func() {
+				merged, err := mergeStruct(targetBaz, sourceBaz, NewOptions())
+				Expect(err).ToNot(HaveOccurred())
+				mergedStruct, ok := merged.(Baz)
+				Expect(ok).To(BeTrue())
+				Expect(mergedStruct.Slice).To(And(
+					ContainElement("unchanged"),
+					ContainElement("added"),
+					ContainElement(0),
+					ContainElement(1),
+				))
+			})
+		})
+
+		Context("pointer fields", func() {
+			type Baz struct {
+				Ptr   *string
+				Slice *[]interface{}
+			}
+			var targetBaz, sourceBaz Baz
+
+			BeforeEach(func() {
+				t := "target"
+				s := "source"
+				targetBaz = Baz{
+					Ptr:   &t,
+					Slice: &[]interface{}{"unchanged", 0},
+				}
+				sourceBaz = Baz{
+					Ptr:   &s,
+					Slice: &[]interface{}{"added", 1},
+				}
+			})
+
+			It("handles them properly", func() {
+				merged, err := mergeStruct(targetBaz, sourceBaz, NewOptions())
+				Expect(err).ToNot(HaveOccurred())
+				mergedStruct, ok := merged.(Baz)
+				Expect(ok).To(BeTrue())
+				Expect(*mergedStruct.Ptr).To(Equal("source"))
+				Expect(*mergedStruct.Slice).To(And(
+					ContainElement("added"),
+					ContainElement(1),
+				))
+			})
+
+			Context("source field is nil", func() {
+				BeforeEach(func() {
+					sourceBaz.Ptr = nil
+					sourceBaz.Slice = nil
+				})
+
+				It("handles the nil", func() {
+					By("with overwrite")
+
+					merged, err := mergeStruct(targetBaz, sourceBaz, NewOptions())
+					Expect(err).ToNot(HaveOccurred())
+					mergedStruct, ok := merged.(Baz)
+					Expect(ok).To(BeTrue())
+					Expect(*mergedStruct.Ptr).To(Equal("target"))
+					Expect(*mergedStruct.Slice).To(And(
+						ContainElement("unchanged"),
+						ContainElement(0),
+					))
+				})
+			})
+		})
+	})
+
 	// These are tested through the merge() func because that is what protects against panics
 	Context("invalid entries", func() {
 		var opt *Options
