@@ -1,6 +1,7 @@
 package merge
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 
@@ -10,6 +11,9 @@ import (
 type Options struct {
 	Overwrite  bool
 	MergeFuncs *funcSelector
+
+	// to be used by merge functions to pass values down into recursive calls freely
+	Context context.Context
 }
 
 func NewOptions() *Options {
