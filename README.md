@@ -7,15 +7,24 @@
 [![Travis Build Status](https://travis-ci.com/InVisionApp/conjungo.svg?token=KosA43m1X3ikri8JEukQ&branch=master)](https://travis-ci.com/InVisionApp/conjungo) 
 [![codecov](https://codecov.io/gh/InVisionApp/conjungo/branch/master/graph/badge.svg?token=lesB1PUEtL)](https://codecov.io/gh/InVisionApp/conjungo)
 
-A merge utility designed for flexibility and customizability.
-The library has a simple interface that uses a set of default merge functions that will fit most basic use 
-cases. From there, specific customizations can be made to merge things in any particular way that is needed.
+A merge utility designed for flexibility and customizability. The library has a
+simple interface that uses a set of default merge functions that will fit most
+basic use cases. From there, specific customizations can be made to merge things
+in any particular way that is needed.
 
-Merge any two things of the same type, including maps, slices, and structs.
-By default, the target value will be overwritten by the source. If the overwrite option is turned off, only 
-new values in source that do not already exist in target will be added.  
-If you would like to change the way two items of a particular type get merged, custom merge functions 
-can be defined for any type or kind (see below).  
+Merge any two things of the same type, including maps, slices, and structs. By
+default, the target value will be overwritten by the source. If the overwrite
+option is turned off, only new values in source that do not already exist in
+target will be added.  
+If you would like to change the way two items of a particular type get merged,
+custom merge functions can be defined for any type or kind (see below).  
+
+## Setup
+In order to use **conjungo**, you should vendor it within your project.
+
+```sh 
+govendor fetch github.com/InVisionApp/conjungo
+```
 
 ## Usage
 Merge two structs together:
