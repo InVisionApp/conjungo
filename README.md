@@ -1,6 +1,7 @@
-# go-merge
+# conjungo
 
-[![Build Status](https://travis-ci.com/InVisionApp/go-merge.svg?token=KosA43m1X3ikri8JEukQ&branch=master)](https://travis-ci.com/InVisionApp/go-merge)
+[![Build Status](https://travis-ci.com/InVisionApp/conjungo.svg?token=KosA43m1X3ikri8JEukQ&branch=master)](https://travis-ci.com/InVisionApp/conjungo) 
+[![codecov](https://codecov.io/gh/InVisionApp/conjungo/branch/master/graph/badge.svg?token=lesB1PUEtL)](https://codecov.io/gh/InVisionApp/conjungo)
 
 A merge utility designed for flexibility and customizability.
 The library has a simple interface that uses a set of default merge functions that will fit most basic use 
