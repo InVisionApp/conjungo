@@ -1,6 +1,10 @@
 # conjungo
 
-[![Build Status](https://travis-ci.com/InVisionApp/conjungo.svg?token=KosA43m1X3ikri8JEukQ&branch=master)](https://travis-ci.com/InVisionApp/conjungo) 
+[![LICENSE](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
+[![Golang](https://img.shields.io/badge/Golang-v1.7-blue.svg)](https://golang.org/dl/)
+[![Godocs](https://img.shields.io/badge/golang-documentation-blue.svg)](https://godoc.org/github.com/InVisionApp/conjungo)
+[![Go Report Card](https://goreportcard.com/badge/github.com/InVisionApp/conjungo)](https://goreportcard.com/report/github.com/InVisionApp/conjungo)
+[![Travis Build Status](https://travis-ci.com/InVisionApp/conjungo.svg?token=KosA43m1X3ikri8JEukQ&branch=master)](https://travis-ci.com/InVisionApp/conjungo) 
 [![codecov](https://codecov.io/gh/InVisionApp/conjungo/branch/master/graph/badge.svg?token=lesB1PUEtL)](https://codecov.io/gh/InVisionApp/conjungo)
 
 A merge utility designed for flexibility and customizability.

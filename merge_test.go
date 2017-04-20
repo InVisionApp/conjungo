@@ -1,4 +1,4 @@
-package merge
+package conjungo
 
 import (
 	"encoding/json"

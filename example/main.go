@@ -3,10 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/InVisionApp/go-merge"
-	"github.com/InVisionApp/go-merge/util"
-	log "github.com/Sirupsen/logrus"
 	"reflect"
+
+	"github.com/InVisionApp/conjungo"
+	log "github.com/Sirupsen/logrus"
 )
 
 func init() {
@@ -50,7 +50,7 @@ func SimpleMap() {
 		log.Fatal(err)
 	}
 
-	util.MarshalIndentPrint(newMap)
+	marshalIndentPrint(newMap)
 }
 
 func CustomMerge() {
@@ -94,7 +94,7 @@ func CustomMerge() {
 		log.Fatal(err)
 	}
 
-	util.MarshalIndentPrint(newMap)
+	marshalIndentPrint(newMap)
 }
 
 func NoOverwrite() {
@@ -117,7 +117,7 @@ func NoOverwrite() {
 		log.Fatal(err)
 	}
 
-	util.MarshalIndentPrint(newMap)
+	marshalIndentPrint(newMap)
 }
 
 func FromJSON() {
@@ -167,5 +167,15 @@ func FromJSON() {
 		log.Fatal(err)
 	}
 
-	util.MarshalIndentPrint(resultMap)
+	marshalIndentPrint(resultMap)
+}
+
+func marshalIndentPrint(i interface{}) error {
+	jBody, err := json.MarshalIndent(i, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(string(jBody))
+	return nil
 }
