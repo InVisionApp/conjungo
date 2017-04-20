@@ -19,6 +19,14 @@ target will be added.
 If you would like to change the way two items of a particular type get merged,
 custom merge functions can be defined for any type or kind (see below).  
 
+## Why Conjungo?
+
+The definition of Conjungo: 
+```
+I.v. a., to bind together, connect, join, unite (very freq. in all perr. and species of composition); constr. with cum, inter se, the dat., or the acc. only; trop. also with ad.
+```
+Reference: [Latin Dictionary...](http://www.perseus.tufts.edu/hopper/text?doc=Perseus:text:1999.04.0059:entry=conjungo)
+
 ## Setup
 In order to use **conjungo**, you should vendor it within your project.
 
