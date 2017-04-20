@@ -1,4 +1,4 @@
-package merge
+package conjungo
 
 import (
 	"reflect"
@@ -733,7 +733,7 @@ var _ = Describe("mergeStruct", func() {
 				}
 				merged, err := merge(targetStruct, Bar{}, opt)
 				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("Types do not match: merge.Foo, merge.Bar"))
+				Expect(err.Error()).To(ContainSubstring("Types do not match: conjungo.Foo, conjungo.Bar"))
 				Expect(merged).To(BeNil())
 			})
 		})

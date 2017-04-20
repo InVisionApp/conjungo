@@ -3,10 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/InVisionApp/go-merge"
-	"github.com/InVisionApp/go-merge/util"
-	log "github.com/Sirupsen/logrus"
 	"reflect"
+
+	"github.com/InVisionApp/conjungo"
+	log "github.com/Sirupsen/logrus"
 )
 
 func init() {
@@ -45,12 +45,12 @@ func SimpleMap() {
 		"D": []interface{}{"added", 1},
 	}
 
-	newMap, err := merge.MergeMapStrIface(targetMap, sourceMap, merge.NewOptions())
+	newMap, err := conjungo.MergeMapStrIface(targetMap, sourceMap, conjungo.NewOptions())
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	util.MarshalIndentPrint(newMap)
+	marshalIndentPrint(newMap)
 }
 
 func CustomMerge() {
@@ -70,11 +70,11 @@ func CustomMerge() {
 		"C": foo{"source"},
 	}
 
-	opts := merge.NewOptions()
+	opts := conjungo.NewOptions()
 	opts.MergeFuncs.SetTypeMergeFunc(
 		reflect.TypeOf(0),
 		// merge two 'int' types by adding them together
-		func(t, s interface{}, o *merge.Options) (interface{}, error) {
+		func(t, s interface{}, o *conjungo.Options) (interface{}, error) {
 			iT, _ := t.(int)
 			iS, _ := s.(int)
 			return iT + iS, nil
@@ -84,17 +84,17 @@ func CustomMerge() {
 	opts.MergeFuncs.SetKindMergeFunc(
 		reflect.TypeOf(struct{}{}).Kind(),
 		// merge two 'struct' kinds by replacing the target with the source
-		func(t, s interface{}, o *merge.Options) (interface{}, error) {
+		func(t, s interface{}, o *conjungo.Options) (interface{}, error) {
 			return s, nil
 		},
 	)
 
-	newMap, err := merge.MergeMapStrIface(targetMap, sourceMap, opts)
+	newMap, err := conjungo.MergeMapStrIface(targetMap, sourceMap, opts)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	util.MarshalIndentPrint(newMap)
+	marshalIndentPrint(newMap)
 }
 
 func NoOverwrite() {
@@ -110,14 +110,14 @@ func NoOverwrite() {
 		"C": map[string]string{"bar": "newVal", "safe": "added"},
 	}
 
-	opts := merge.NewOptions()
+	opts := conjungo.NewOptions()
 	opts.Overwrite = false
-	newMap, err := merge.MergeMapStrIface(targetMap, sourceMap, opts)
+	newMap, err := conjungo.MergeMapStrIface(targetMap, sourceMap, opts)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	util.MarshalIndentPrint(newMap)
+	marshalIndentPrint(newMap)
 }
 
 func FromJSON() {
@@ -140,11 +140,11 @@ func FromJSON() {
 	  "d": ["new"]
 	}`
 
-	opts := merge.NewOptions()
+	opts := conjungo.NewOptions()
 	opts.MergeFuncs.SetTypeMergeFunc(
 		reflect.TypeOf(jsonString("")),
 		// merge two json strings by unmarshalling them to maps
-		func(t, s interface{}, o *merge.Options) (interface{}, error) {
+		func(t, s interface{}, o *conjungo.Options) (interface{}, error) {
 			targetStr, _ := t.(jsonString)
 			sourceStr, _ := s.(jsonString)
 
@@ -158,14 +158,24 @@ func FromJSON() {
 				return nil, err
 			}
 
-			return merge.MergeMapStrIface(targetMap, sourceMap, o)
+			return conjungo.MergeMapStrIface(targetMap, sourceMap, o)
 		},
 	)
 
-	resultMap, err := merge.Merge(targetJSON, sourceJSON, opts)
+	resultMap, err := conjungo.Merge(targetJSON, sourceJSON, opts)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	util.MarshalIndentPrint(resultMap)
+	marshalIndentPrint(resultMap)
+}
+
+func marshalIndentPrint(i interface{}) error {
+	jBody, err := json.MarshalIndent(i, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(string(jBody))
+	return nil
 }

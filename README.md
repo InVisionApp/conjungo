@@ -1,6 +1,11 @@
-# go-merge
+# conjungo
 
-[![Build Status](https://travis-ci.com/InVisionApp/go-merge.svg?token=KosA43m1X3ikri8JEukQ&branch=master)](https://travis-ci.com/InVisionApp/go-merge)
+[![LICENSE](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
+[![Golang](https://img.shields.io/badge/Golang-v1.7-blue.svg)](https://golang.org/dl/)
+[![Godocs](https://img.shields.io/badge/golang-documentation-blue.svg)](https://godoc.org/github.com/InVisionApp/conjungo)
+[![Go Report Card](https://goreportcard.com/badge/github.com/InVisionApp/conjungo)](https://goreportcard.com/report/github.com/InVisionApp/conjungo)
+[![Travis Build Status](https://travis-ci.com/InVisionApp/conjungo.svg?token=KosA43m1X3ikri8JEukQ&branch=master)](https://travis-ci.com/InVisionApp/conjungo) 
+[![codecov](https://codecov.io/gh/InVisionApp/conjungo/branch/master/graph/badge.svg?token=lesB1PUEtL)](https://codecov.io/gh/InVisionApp/conjungo)
 
 A merge utility designed for flexibility and customizability.
 The library has a simple interface that uses a set of default merge functions that will fit most basic use 
@@ -33,7 +38,7 @@ sourceStruct := Foo{
 	Special: true,
 }
 
-merged, err := merge.Merge(targetStruct, sourceStruct, nil)
+merged, err := conjungo.Merge(targetStruct, sourceStruct, nil)
 if err != nil {
 	log.Error(err)
 }
@@ -54,7 +59,7 @@ sourceMap := map[string]interface{}{
 }
 
 // use the map merge wrapper
-merged, err := merge.MergeMapStrIface(targetMap, sourceMap, nil)
+merged, err := conjungo.MergeMapStrIface(targetMap, sourceMap, nil)
 if err != nil {
 	log.Error(err)
 }
@@ -62,7 +67,7 @@ if err != nil {
 // OR 
 
 // use the main merge func
-merged, err := merge.Merge(targetMap, sourceMap, nil)
+merged, err := conjungo.Merge(targetMap, sourceMap, nil)
 if err != nil {
 	log.Error(err)
 }
@@ -71,18 +76,18 @@ mergedMap, _ := merged.(map[string]interface{})
 
 Define a custom merge function for a type:
 ```go
-opts := merge.NewOptions()
+opts := conjungo.NewOptions()
 opts.MergeFuncs.SetTypeMergeFunc(
 	reflect.TypeOf(0),
 	// merge two 'int' types by adding them together
-	func(t, s interface{}, o *merge.Options) (interface{}, error) {
+	func(t, s interface{}, o *conjungo.Options) (interface{}, error) {
 		iT, _ := t.(int)
 		iS, _ := s.(int)
 		return iT + iS, nil
 	},
 )
 
-merged, err := merge.Merge(1, 2, opts)
+merged, err := conjungo.Merge(1, 2, opts)
 if err != nil {
 	log.Error(err)
 }
@@ -91,11 +96,11 @@ if err != nil {
 
 or for a kind:
 ```go
-opts := merge.NewOptions()
+opts := conjungo.NewOptions()
 opts.MergeFuncs.SetKindMergeFunc(
 	reflect.TypeOf(struct{}{}).Kind(),
 	// merge two 'struct' kinds by replacing the target with the source
-	func(t, s interface{}, o *merge.Options) (interface{}, error) {
+	func(t, s interface{}, o *conjungo.Options) (interface{}, error) {
 		return s, nil
 	},
 )
