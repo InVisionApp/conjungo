@@ -16,6 +16,7 @@ Merge any two things of the same type, including maps, slices, and structs. By
 default, the target value will be overwritten by the source. If the overwrite
 option is turned off, only new values in source that do not already exist in
 target will be added.  
+
 If you would like to change the way two items of a particular type get merged,
 custom merge functions can be defined for any type or kind (see below).  
 
