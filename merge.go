@@ -31,7 +31,7 @@ func MergeMapStrIface(target, src map[string]interface{}, opt *Options) (map[str
 	}
 
 	valMap, ok := val.(map[string]interface{})
-		if ok {
+	if ok {
 		return valMap, nil
 	}
 

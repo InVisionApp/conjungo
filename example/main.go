@@ -45,7 +45,7 @@ func SimpleMap() {
 		"D": []interface{}{"added", 1},
 	}
 
-	newMap, err := conjungo.MergeMapStrIface(targetMap, sourceMap, conjungo.NewOptions())
+	newMap, err := conjungo.MergeMapStrIface(targetMap, sourceMap, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
