@@ -350,9 +350,7 @@ var _ = Describe("Merge", func() {
 				// define a merge func that always errors for the error type
 				opts.MergeFuncs.SetTypeMergeFunc(
 					reflect.TypeOf(errors.New("")),
-					func(t, s interface{}, o *Options) (interface{}, error) {
-						return nil, errors.New("returns error")
-					},
+					erroringMergeFunc,
 				)
 				_, err := Merge(target, source, opts)
 
@@ -452,9 +450,7 @@ var _ = Describe("MergeMapStrIFace", func() {
 			// define a merge func that always errors for the error type
 			opts.MergeFuncs.SetTypeMergeFunc(
 				reflect.TypeOf(errors.New("")),
-				func(t, s interface{}, o *Options) (interface{}, error) {
-					return nil, errors.New("returns error")
-				},
+				erroringMergeFunc,
 			)
 
 			newMap, err = MergeMapStrIface(targetMap, sourceMap, opts)
@@ -475,8 +471,8 @@ var _ = Describe("MergeMapStrIFace", func() {
 			// define a merge func that returns wrong type
 			opts.MergeFuncs.SetTypeMergeFunc(
 				reflect.TypeOf(map[string]interface{}{}),
-				func(t, s interface{}, o *Options) (interface{}, error) {
-					return "a string", nil
+				func(t, s reflect.Value, o *Options) (reflect.Value, error) {
+					return reflect.ValueOf("a string"), nil
 				},
 			)
 
@@ -489,3 +485,7 @@ var _ = Describe("MergeMapStrIFace", func() {
 		})
 	})
 })
+
+func erroringMergeFunc(t, s reflect.Value, o *Options) (reflect.Value, error) {
+	return reflect.Value{}, errors.New("returns error")
+}

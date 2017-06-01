@@ -78,10 +78,10 @@ func merge(valT, valS reflect.Value, opt *Options) (reflect.Value, error) {
 
 	// look for a merge function
 	f := opt.MergeFuncs.GetFunc(valT)
-	val, err := f(valT.Interface(), valS.Interface(), opt)
+	val, err := f(valT, valS, opt)
 	if err != nil {
 		return reflect.Value{}, err
 	}
 
-	return reflect.ValueOf(val), nil
+	return val, nil
 }

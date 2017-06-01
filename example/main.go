@@ -74,17 +74,18 @@ func CustomMerge() {
 	opts.MergeFuncs.SetTypeMergeFunc(
 		reflect.TypeOf(0),
 		// merge two 'int' types by adding them together
-		func(t, s interface{}, o *conjungo.Options) (interface{}, error) {
-			iT, _ := t.(int)
-			iS, _ := s.(int)
-			return iT + iS, nil
+		func(t, s reflect.Value, o *conjungo.Options) (reflect.Value, error) {
+			iT, _ := t.Interface().(int)
+			iS, _ := s.Interface().(int)
+			return reflect.ValueOf(iT + iS), nil
 		},
 	)
 
 	opts.MergeFuncs.SetKindMergeFunc(
 		reflect.TypeOf(struct{}{}).Kind(),
 		// merge two 'struct' kinds by replacing the target with the source
-		func(t, s interface{}, o *conjungo.Options) (interface{}, error) {
+		// provides a mechanism to set override = true for just structs
+		func(t, s reflect.Value, o *conjungo.Options) (reflect.Value, error) {
 			return s, nil
 		},
 	)
@@ -144,21 +145,26 @@ func FromJSON() {
 	opts.MergeFuncs.SetTypeMergeFunc(
 		reflect.TypeOf(jsonString("")),
 		// merge two json strings by unmarshalling them to maps
-		func(t, s interface{}, o *conjungo.Options) (interface{}, error) {
-			targetStr, _ := t.(jsonString)
-			sourceStr, _ := s.(jsonString)
+		func(t, s reflect.Value, o *conjungo.Options) (reflect.Value, error) {
+			targetStr, _ := t.Interface().(jsonString)
+			sourceStr, _ := s.Interface().(jsonString)
 
 			targetMap := map[string]interface{}{}
 			if err := json.Unmarshal([]byte(targetStr), &targetMap); err != nil {
-				return nil, err
+				return reflect.Value{}, err
 			}
 
 			sourceMap := map[string]interface{}{}
 			if err := json.Unmarshal([]byte(sourceStr), &sourceMap); err != nil {
-				return nil, err
+				return reflect.Value{}, err
 			}
 
-			return conjungo.MergeMapStrIface(targetMap, sourceMap, o)
+			merged, err := conjungo.MergeMapStrIface(targetMap, sourceMap, o)
+			if err != nil {
+				return reflect.Value{}, err
+			}
+
+			return reflect.ValueOf(merged), nil
 		},
 	)
 

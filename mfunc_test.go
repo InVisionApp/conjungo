@@ -1,7 +1,6 @@
 package conjungo
 
 import (
-	"errors"
 	"reflect"
 
 	. "github.com/onsi/ginkgo"
@@ -57,8 +56,8 @@ var _ = Describe("Set Merge Func", func() {
 			stubReturns := "uniqe string"
 			t := reflect.TypeOf(TestKey{})
 			fs.SetTypeMergeFunc(t, newMergeFuncStub(stubReturns))
-			returned, _ := fs.typeFuncs[t](nil, nil, NewOptions())
-			Expect(returned).To(Equal(stubReturns))
+			returned, _ := fs.typeFuncs[t](reflect.Value{}, reflect.Value{}, NewOptions())
+			Expect(returned.Interface()).To(Equal(stubReturns))
 		})
 	})
 
@@ -67,9 +66,9 @@ var _ = Describe("Set Merge Func", func() {
 			stubReturns := "uniqe string"
 			k := reflect.TypeOf(TestKey{}).Kind()
 			fs.SetKindMergeFunc(k, newMergeFuncStub(stubReturns))
-			returned, _ := fs.kindFuncs[k](nil, nil, NewOptions())
+			returned, _ := fs.kindFuncs[k](reflect.Value{}, reflect.Value{}, NewOptions())
 
-			Expect(returned).To(Equal(stubReturns))
+			Expect(returned.Interface()).To(Equal(stubReturns))
 		})
 	})
 
@@ -77,9 +76,9 @@ var _ = Describe("Set Merge Func", func() {
 		It("adds the func correctly", func() {
 			stubReturns := "uniqe string"
 			fs.SetDefaultMergeFunc(newMergeFuncStub(stubReturns))
-			returned, _ := fs.defaultFunc(nil, nil, NewOptions())
+			returned, _ := fs.defaultFunc(reflect.Value{}, reflect.Value{}, NewOptions())
 
-			Expect(returned).To(Equal(stubReturns))
+			Expect(returned.Interface()).To(Equal(stubReturns))
 		})
 	})
 
@@ -124,16 +123,16 @@ var _ = Describe("GetFunc", func() {
 
 		It("gets the func", func() {
 			f := fs.GetFunc(reflect.ValueOf(key))
-			returned, _ := f(nil, nil, NewOptions())
-			Expect(returned).To(Equal(typeStubReturns))
+			returned, _ := f(reflect.Value{}, reflect.Value{}, NewOptions())
+			Expect(returned.Interface()).To(Equal(typeStubReturns))
 		})
 
 		Context("kind func is also defined", func() {
 			It("choses the type func", func() {
 				fs.SetKindMergeFunc(reflect.TypeOf(key).Kind(), newMergeFuncStub(kindStubReturns))
 				f := fs.GetFunc(reflect.ValueOf(key))
-				returned, _ := f(nil, nil, NewOptions())
-				Expect(returned).To(Equal(typeStubReturns))
+				returned, _ := f(reflect.Value{}, reflect.Value{}, NewOptions())
+				Expect(returned.Interface()).To(Equal(typeStubReturns))
 			})
 		})
 	})
@@ -143,8 +142,8 @@ var _ = Describe("GetFunc", func() {
 			It("choses the kind func", func() {
 				fs.SetKindMergeFunc(reflect.TypeOf(key).Kind(), newMergeFuncStub(kindStubReturns))
 				f := fs.GetFunc(reflect.ValueOf(key))
-				returned, _ := f(nil, nil, NewOptions())
-				Expect(returned).To(Equal(kindStubReturns))
+				returned, _ := f(reflect.Value{}, reflect.Value{}, NewOptions())
+				Expect(returned.Interface()).To(Equal(kindStubReturns))
 			})
 		})
 
@@ -153,16 +152,16 @@ var _ = Describe("GetFunc", func() {
 				It("choses the default func", func() {
 					fs.SetDefaultMergeFunc(newMergeFuncStub(defaultStubReturns))
 					f := fs.GetFunc(reflect.ValueOf(key))
-					returned, _ := f(nil, nil, NewOptions())
-					Expect(returned).To(Equal(defaultStubReturns))
+					returned, _ := f(reflect.Value{}, reflect.Value{}, NewOptions())
+					Expect(returned.Interface()).To(Equal(defaultStubReturns))
 				})
 			})
 
 			Context("no default func defined", func() {
 				It("choses the global default func", func() {
 					f := fs.GetFunc(reflect.ValueOf(key))
-					returned, _ := f("a", "b", NewOptions())
-					Expect(returned).To(Equal("b"))
+					returned, _ := f(reflect.ValueOf("a"), reflect.ValueOf("b"), NewOptions())
+					Expect(returned.Interface()).To(Equal("b"))
 				})
 			})
 		})
@@ -172,15 +171,15 @@ var _ = Describe("GetFunc", func() {
 		It("returns defaultMergeFunc", func() {
 			f := fs.GetFunc(reflect.ValueOf(key))
 			Expect(f).ToNot(BeNil())
-			merged, _ := f("a", "b", NewOptions())
-			Expect(merged).To(Equal("b"))
+			merged, _ := f(reflect.ValueOf("a"), reflect.ValueOf("b"), NewOptions())
+			Expect(merged.Interface()).To(Equal("b"))
 		})
 	})
 })
 
 func newMergeFuncStub(s string) MergeFunc {
-	return func(interface{}, interface{}, *Options) (interface{}, error) {
-		return s, nil
+	return func(reflect.Value, reflect.Value, *Options) (reflect.Value, error) {
+		return reflect.ValueOf(s), nil
 	}
 }
 
@@ -194,25 +193,26 @@ var _ = Describe("defaultMergeFunc", func() {
 	Context("overwrite true", func() {
 		It("returns source", func() {
 			opts.Overwrite = true
-			merged, err := defaultMergeFunc("a", "b", opts)
+			merged, err := defaultMergeFunc(reflect.ValueOf("a"), reflect.ValueOf("b"), opts)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(merged).To(Equal("b"))
+			Expect(merged.Interface()).To(Equal("b"))
 		})
 	})
 
 	Context("overwrite false", func() {
 		It("returns target", func() {
 			opts.Overwrite = false
-			merged, err := defaultMergeFunc("a", "b", opts)
+			merged, err := defaultMergeFunc(reflect.ValueOf("a"), reflect.ValueOf("b"), opts)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(merged).To(Equal("a"))
+			Expect(merged.Interface()).To(Equal("a"))
 		})
 	})
 })
 
 var _ = Describe("mergeMap", func() {
 	var (
-		targetMap, sourceMap map[string]interface{}
+		targetMap, sourceMap       map[string]interface{}
+		targetMapVal, sourceMapVal reflect.Value
 	)
 
 	BeforeEach(func() {
@@ -231,13 +231,18 @@ var _ = Describe("mergeMap", func() {
 		}
 	})
 
+	JustBeforeEach(func() {
+		targetMapVal = reflect.ValueOf(targetMap)
+		sourceMapVal = reflect.ValueOf(sourceMap)
+	})
+
 	Context("happy path smoke test", func() {
 		It("merges correctly", func() {
-			merged, err := mergeMap(targetMap, sourceMap, NewOptions())
+			merged, err := mergeMap(targetMapVal, sourceMapVal, NewOptions())
 
 			Expect(err).ToNot(HaveOccurred())
 
-			mergedMap, ok := merged.(map[string]interface{})
+			mergedMap, ok := merged.Interface().(map[string]interface{})
 			Expect(ok).To(BeTrue())
 			Expect(mergedMap["A"]).To(Equal("correct"))
 			Expect(mergedMap["B"]).To(Equal(2))
@@ -263,11 +268,11 @@ var _ = Describe("mergeMap", func() {
 		It("overwrites", func() {
 			opt := NewOptions()
 			opt.Overwrite = true
-			merged, err := mergeMap(targetMap, sourceMap, opt)
+			merged, err := mergeMap(targetMapVal, sourceMapVal, opt)
 
 			Expect(err).ToNot(HaveOccurred())
 
-			mergedMap, ok := merged.(map[string]interface{})
+			mergedMap, ok := merged.Interface().(map[string]interface{})
 			Expect(ok).To(BeTrue())
 			Expect(mergedMap["A"]).To(Equal("correct"))
 			Expect(mergedMap["B"]).To(Equal(2))
@@ -284,11 +289,11 @@ var _ = Describe("mergeMap", func() {
 		It("doesnt overwrite", func() {
 			opt := NewOptions()
 			opt.Overwrite = false
-			merged, err := mergeMap(targetMap, sourceMap, opt)
+			merged, err := mergeMap(targetMapVal, sourceMapVal, opt)
 
 			Expect(err).ToNot(HaveOccurred())
 
-			mergedMap, ok := merged.(map[string]interface{})
+			mergedMap, ok := merged.Interface().(map[string]interface{})
 			Expect(ok).To(BeTrue())
 			Expect(mergedMap["A"]).To(Equal("wrong"))
 			Expect(mergedMap["B"]).To(Equal(1))
@@ -302,45 +307,66 @@ var _ = Describe("mergeMap", func() {
 	})
 
 	Context("empty target", func() {
+		BeforeEach(func() {
+			targetMap = map[string]interface{}{}
+		})
+
 		It("equals source", func() {
-			merged, err := mergeMap(map[string]interface{}{}, sourceMap, NewOptions())
+			merged, err := mergeMap(targetMapVal, sourceMapVal, NewOptions())
 
 			Expect(err).ToNot(HaveOccurred())
-			Expect(merged).To(Equal(sourceMap))
+			Expect(merged.Interface()).To(Equal(sourceMap))
 		})
 	})
 
 	Context("empty source", func() {
+		BeforeEach(func() {
+			sourceMap = map[string]interface{}{}
+		})
+
 		It("equals target", func() {
-			merged, err := mergeMap(targetMap, map[string]interface{}{}, NewOptions())
+			merged, err := mergeMap(targetMapVal, sourceMapVal, NewOptions())
 
 			Expect(err).ToNot(HaveOccurred())
-			Expect(merged).To(Equal(targetMap))
+			Expect(merged.Interface()).To(Equal(targetMap))
 		})
 	})
 
-	Context("nil target", func() {
-		It("equals source", func() {
-			merged, err := mergeMap(nil, sourceMap, NewOptions())
+	Context("nils", func() {
+		// these are called via merge() because that is what does the nil checks
+		By("call via merge()")
 
-			Expect(err).ToNot(HaveOccurred())
-			Expect(merged).To(Equal(sourceMap))
+		Context("nil target", func() {
+			JustBeforeEach(func() {
+				targetMapVal = reflect.Value{}
+			})
+
+			It("equals source", func() {
+				merged, err := merge(targetMapVal, sourceMapVal, NewOptions())
+
+				Expect(err).ToNot(HaveOccurred())
+				Expect(merged.Interface()).To(Equal(sourceMap))
+			})
 		})
-	})
 
-	Context("nil source", func() {
-		It("equals target", func() {
-			merged, err := mergeMap(targetMap, nil, NewOptions())
+		Context("nil source", func() {
+			JustBeforeEach(func() {
+				sourceMapVal = reflect.Value{}
+			})
 
-			Expect(err).ToNot(HaveOccurred())
-			Expect(merged).To(Equal(targetMap))
+			It("equals target", func() {
+				merged, err := merge(targetMapVal, sourceMapVal, NewOptions())
+
+				Expect(err).ToNot(HaveOccurred())
+				Expect(merged.Interface()).To(Equal(targetMap))
+			})
 		})
 	})
 
 	Context("mismatched field types", func() {
 		It("errors", func() {
 			targetMap["A"] = 0
-			_, err := mergeMap(targetMap, sourceMap, NewOptions())
+			_, err := mergeMap(targetMapVal, sourceMapVal, NewOptions())
 
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(Equal("key 'A': Types do not match: int, string"))
@@ -349,7 +375,7 @@ var _ = Describe("mergeMap", func() {
 		Context("submap mismatch", func() {
 			It("errors", func() {
 				targetMap["C"] = map[string]interface{}{"bar": 0, "baz": "added"}
-				_, err := mergeMap(targetMap, sourceMap, NewOptions())
+				_, err := mergeMap(targetMapVal, sourceMapVal, NewOptions())
 
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(Equal("key 'C': key 'bar': Types do not match: int, string"))
@@ -360,7 +386,8 @@ var _ = Describe("mergeMap", func() {
 
 var _ = Describe("mergeSlice", func() {
 	var (
-		targetSlice, sourceSlice []interface{}
+		targetSlice, sourceSlice       []interface{}
+		targetSliceVal, sourceSliceVal reflect.Value
 	)
 
 	BeforeEach(func() {
@@ -368,12 +395,17 @@ var _ = Describe("mergeSlice", func() {
 		sourceSlice = []interface{}{1, "added", true}
 	})
 
+	JustBeforeEach(func() {
+		targetSliceVal = reflect.ValueOf(targetSlice)
+		sourceSliceVal = reflect.ValueOf(sourceSlice)
+	})
+
 	Context("two populated slices", func() {
 		It("merges them", func() {
-			merged, err := mergeSlice(targetSlice, sourceSlice, NewOptions())
+			merged, err := mergeSlice(targetSliceVal, sourceSliceVal, NewOptions())
 			Expect(err).ToNot(HaveOccurred())
 
-			mergedSlice, ok := merged.([]interface{})
+			mergedSlice, ok := merged.Interface().([]interface{})
 			Expect(ok).To(BeTrue())
 
 			Expect(mergedSlice).To(And(
@@ -388,11 +420,15 @@ var _ = Describe("mergeSlice", func() {
 	})
 
 	Context("target slice is empty", func() {
+		BeforeEach(func() {
+			targetSlice = []interface{}{}
+		})
+
 		It("equals source", func() {
-			merged, err := mergeSlice([]interface{}{}, sourceSlice, NewOptions())
+			merged, err := mergeSlice(targetSliceVal, sourceSliceVal, NewOptions())
 			Expect(err).ToNot(HaveOccurred())
 
-			mergedSlice, ok := merged.([]interface{})
+			mergedSlice, ok := merged.Interface().([]interface{})
 			Expect(ok).To(BeTrue())
 
 			Expect(len(mergedSlice)).To(Equal(len(sourceSlice)))
@@ -410,55 +446,15 @@ var _ = Describe("mergeSlice", func() {
 	})
 
 	Context("source slice is empty", func() {
-		It("equals target", func() {
-			merged, err := mergeSlice(targetSlice, []interface{}{}, NewOptions())
-			Expect(err).ToNot(HaveOccurred())
-
-			mergedSlice, ok := merged.([]interface{})
-			Expect(ok).To(BeTrue())
-
-			Expect(len(mergedSlice)).To(Equal(len(targetSlice)))
-			Expect(mergedSlice).To(And(
-				ContainElement("unchanged"),
-				ContainElement(0),
-				ContainElement(3.6),
-			))
-			Expect(mergedSlice).ToNot(And(
-				ContainElement("added"),
-				ContainElement(1),
-				ContainElement(true),
-			))
+		BeforeEach(func() {
+			sourceSlice = []interface{}{}
 		})
-	})
 
-	Context("target slice is nil", func() {
-		It("equals source", func() {
-			merged, err := mergeSlice(nil, sourceSlice, NewOptions())
-			Expect(err).ToNot(HaveOccurred())
-
-			mergedSlice, ok := merged.([]interface{})
-			Expect(ok).To(BeTrue())
-
-			Expect(len(mergedSlice)).To(Equal(len(sourceSlice)))
-			Expect(mergedSlice).To(And(
-				ContainElement("added"),
-				ContainElement(1),
-				ContainElement(true),
-			))
-			Expect(mergedSlice).ToNot(And(
-				ContainElement("unchanged"),
-				ContainElement(0),
-				ContainElement(3.6),
-			))
-		})
-	})
-
-	Context("source slice is nil", func() {
 		It("equals target", func() {
-			merged, err := mergeSlice(targetSlice, nil, NewOptions())
+			merged, err := mergeSlice(targetSliceVal, sourceSliceVal, NewOptions())
 			Expect(err).ToNot(HaveOccurred())
 
-			mergedSlice, ok := merged.([]interface{})
+			mergedSlice, ok := merged.Interface().([]interface{})
 			Expect(ok).To(BeTrue())
 
 			Expect(len(mergedSlice)).To(Equal(len(targetSlice)))
@@ -476,24 +472,90 @@ var _ = Describe("mergeSlice", func() {
 	})
 
 	Context("both slices are empty", func() {
+		BeforeEach(func() {
+			targetSlice = []interface{}{}
+			sourceSlice = []interface{}{}
+		})
+
 		It("returns empty slice", func() {
-			merged, err := mergeSlice([]interface{}{}, []interface{}{}, NewOptions())
+			merged, err := mergeSlice(targetSliceVal, sourceSliceVal, NewOptions())
 			Expect(err).ToNot(HaveOccurred())
 
-			mergedSlice, ok := merged.([]interface{})
+			mergedSlice, ok := merged.Interface().([]interface{})
 			Expect(ok).To(BeTrue())
 
 			Expect(mergedSlice).To(BeEmpty())
 		})
+	})
 
-		It("returns empty slice", func() {
-			merged, err := mergeSlice(nil, nil, NewOptions())
-			Expect(err).ToNot(HaveOccurred())
+	Context("nil values", func() {
+		// these are called via merge() because that is what does the nil checks
+		By("call via merge()")
 
-			mergedSlice, ok := merged.([]interface{})
-			Expect(ok).To(BeTrue())
+		Context("target val is nil", func() {
+			JustBeforeEach(func() {
+				targetSliceVal = reflect.Value{}
+			})
 
-			Expect(mergedSlice).To(BeEmpty())
+			It("equals source", func() {
+				merged, err := merge(targetSliceVal, sourceSliceVal, NewOptions())
+				Expect(err).ToNot(HaveOccurred())
+
+				mergedSlice, ok := merged.Interface().([]interface{})
+				Expect(ok).To(BeTrue())
+
+				Expect(len(mergedSlice)).To(Equal(len(sourceSlice)))
+				Expect(mergedSlice).To(And(
+					ContainElement("added"),
+					ContainElement(1),
+					ContainElement(true),
+				))
+				Expect(mergedSlice).ToNot(And(
+					ContainElement("unchanged"),
+					ContainElement(0),
+					ContainElement(3.6),
+				))
+			})
+		})
+
+		Context("source slice is nil", func() {
+			JustBeforeEach(func() {
+				sourceSliceVal = reflect.Value{}
+			})
+
+			It("equals target", func() {
+				merged, err := merge(targetSliceVal, sourceSliceVal, NewOptions())
+				Expect(err).ToNot(HaveOccurred())
+
+				mergedSlice, ok := merged.Interface().([]interface{})
+				Expect(ok).To(BeTrue())
+
+				Expect(len(mergedSlice)).To(Equal(len(targetSlice)))
+				Expect(mergedSlice).To(And(
+					ContainElement("unchanged"),
+					ContainElement(0),
+					ContainElement(3.6),
+				))
+				Expect(mergedSlice).ToNot(And(
+					ContainElement("added"),
+					ContainElement(1),
+					ContainElement(true),
+				))
+			})
+		})
+
+		Context("both slices are nil", func() {
+			JustBeforeEach(func() {
+				targetSliceVal = reflect.Value{}
+				sourceSliceVal = reflect.Value{}
+			})
+
+			It("returns empty slice", func() {
+				merged, err := merge(targetSliceVal, sourceSliceVal, NewOptions())
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(merged.IsValid()).ToNot(BeTrue())
+			})
 		})
 	})
 })
@@ -506,8 +568,14 @@ var _ = Describe("mergeStruct", func() {
 	}
 
 	var (
-		targetStruct, sourceStruct Foo
+		targetStruct, sourceStruct       Foo
+		targetStructVal, sourceStructVal reflect.Value
 	)
+
+	JustBeforeEach(func() {
+		targetStructVal = reflect.ValueOf(targetStruct)
+		sourceStructVal = reflect.ValueOf(sourceStruct)
+	})
 
 	Context("two populated structs", func() {
 		BeforeEach(func() {
@@ -525,10 +593,11 @@ var _ = Describe("mergeStruct", func() {
 		})
 
 		It("merges correctly", func() {
-			merged, err := mergeStruct(&targetStruct, &sourceStruct, NewOptions())
+			merged, err := mergeStruct(targetStructVal, sourceStructVal, NewOptions())
 			Expect(err).ToNot(HaveOccurred())
 			Expect(merged).ToNot(BeNil())
-			mergedStruct, ok := merged.(Foo)
+
+			mergedStruct, ok := merged.Interface().(Foo)
 			Expect(ok).To(BeTrue())
 			Expect(mergedStruct.Name).To(Equal(sourceStruct.Name))
 			Expect(mergedStruct.Size).To(Equal(sourceStruct.Size))
@@ -537,11 +606,11 @@ var _ = Describe("mergeStruct", func() {
 		})
 
 		DescribeTable("pointer combinations",
-			func(f func() (interface{}, error)) {
+			func(f func() (reflect.Value, error)) {
 				merged, err := f()
 				Expect(err).ToNot(HaveOccurred())
 				Expect(merged).ToNot(BeNil())
-				mergedStruct, ok := merged.(Foo)
+				mergedStruct, ok := merged.Interface().(Foo)
 				Expect(ok).To(BeTrue())
 				Expect(mergedStruct.Name).To(Equal(sourceStruct.Name))
 				Expect(mergedStruct.Size).To(Equal(sourceStruct.Size))
@@ -550,26 +619,26 @@ var _ = Describe("mergeStruct", func() {
 			},
 			Entry(
 				"pointer: T:n S:n",
-				func() (interface{}, error) {
-					return mergeStruct(targetStruct, sourceStruct, NewOptions())
+				func() (reflect.Value, error) {
+					return mergeStruct(reflect.ValueOf(targetStruct), reflect.ValueOf(sourceStruct), NewOptions())
 				},
 			),
 			Entry(
 				"pointer: T:y S:y",
-				func() (interface{}, error) {
-					return mergeStruct(&targetStruct, &sourceStruct, NewOptions())
+				func() (reflect.Value, error) {
+					return mergeStruct(reflect.ValueOf(&targetStruct), reflect.ValueOf(&sourceStruct), NewOptions())
 				},
 			),
 			Entry(
 				"pointer: T:y S:n",
-				func() (interface{}, error) {
-					return mergeStruct(&targetStruct, sourceStruct, NewOptions())
+				func() (reflect.Value, error) {
+					return mergeStruct(reflect.ValueOf(&targetStruct), reflect.ValueOf(sourceStruct), NewOptions())
 				},
 			),
 			Entry(
 				"pointer: T:n S:y",
-				func() (interface{}, error) {
-					return mergeStruct(targetStruct, &sourceStruct, NewOptions())
+				func() (reflect.Value, error) {
+					return mergeStruct(reflect.ValueOf(targetStruct), reflect.ValueOf(&sourceStruct), NewOptions())
 				},
 			),
 		)
@@ -577,11 +646,15 @@ var _ = Describe("mergeStruct", func() {
 
 	Context("partially populated", func() {
 		Context("target is empty", func() {
+			BeforeEach(func() {
+				targetStruct = Foo{}
+			})
+
 			It("returns source", func() {
-				merged, err := mergeStruct(Foo{}, sourceStruct, NewOptions())
+				merged, err := mergeStruct(targetStructVal, sourceStructVal, NewOptions())
 				Expect(err).ToNot(HaveOccurred())
 				Expect(merged).ToNot(BeNil())
-				mergedStruct, ok := merged.(Foo)
+				mergedStruct, ok := merged.Interface().(Foo)
 				Expect(ok).To(BeTrue())
 				Expect(mergedStruct.Name).To(Equal(sourceStruct.Name))
 				Expect(mergedStruct.Size).To(Equal(sourceStruct.Size))
@@ -590,12 +663,18 @@ var _ = Describe("mergeStruct", func() {
 		})
 
 		Context("source is empty", func() {
+			var emptyFoo Foo
+
+			BeforeEach(func() {
+				emptyFoo = Foo{}
+				sourceStruct = emptyFoo
+			})
+
 			It("returns empty", func() {
-				emptyFoo := Foo{}
-				merged, err := mergeStruct(targetStruct, emptyFoo, NewOptions())
+				merged, err := mergeStruct(targetStructVal, sourceStructVal, NewOptions())
 				Expect(err).ToNot(HaveOccurred())
 				Expect(merged).ToNot(BeNil())
-				mergedStruct, ok := merged.(Foo)
+				mergedStruct, ok := merged.Interface().(Foo)
 				Expect(ok).To(BeTrue())
 				Expect(mergedStruct.Name).To(Equal(emptyFoo.Name))
 				Expect(mergedStruct.Size).To(Equal(emptyFoo.Size))
@@ -609,7 +688,9 @@ var _ = Describe("mergeStruct", func() {
 			type Baz struct {
 				Slice []interface{}
 			}
+
 			var targetBaz, sourceBaz Baz
+			var targetBazVal, sourceBazVal reflect.Value
 
 			BeforeEach(func() {
 				targetBaz = Baz{
@@ -620,10 +701,15 @@ var _ = Describe("mergeStruct", func() {
 				}
 			})
 
+			JustBeforeEach(func() {
+				targetBazVal = reflect.ValueOf(targetBaz)
+				sourceBazVal = reflect.ValueOf(sourceBaz)
+			})
+
 			It("merges them", func() {
-				merged, err := mergeStruct(targetBaz, sourceBaz, NewOptions())
+				merged, err := mergeStruct(targetBazVal, sourceBazVal, NewOptions())
 				Expect(err).ToNot(HaveOccurred())
-				mergedStruct, ok := merged.(Baz)
+				mergedStruct, ok := merged.Interface().(Baz)
 				Expect(ok).To(BeTrue())
 				Expect(mergedStruct.Slice).To(And(
 					ContainElement("unchanged"),
@@ -639,7 +725,9 @@ var _ = Describe("mergeStruct", func() {
 				Ptr   *string
 				Slice *[]interface{}
 			}
+
 			var targetBaz, sourceBaz Baz
+			var targetBazVal, sourceBazVal reflect.Value
 
 			BeforeEach(func() {
 				t := "target"
@@ -654,10 +742,15 @@ var _ = Describe("mergeStruct", func() {
 				}
 			})
 
+			JustBeforeEach(func() {
+				targetBazVal = reflect.ValueOf(targetBaz)
+				sourceBazVal = reflect.ValueOf(sourceBaz)
+			})
+
 			It("handles them properly", func() {
-				merged, err := mergeStruct(targetBaz, sourceBaz, NewOptions())
+				merged, err := mergeStruct(targetBazVal, sourceBazVal, NewOptions())
 				Expect(err).ToNot(HaveOccurred())
-				mergedStruct, ok := merged.(Baz)
+				mergedStruct, ok := merged.Interface().(Baz)
 				Expect(ok).To(BeTrue())
 				Expect(*mergedStruct.Ptr).To(Equal("source"))
 				Expect(*mergedStruct.Slice).To(And(
@@ -675,9 +768,9 @@ var _ = Describe("mergeStruct", func() {
 				It("handles the nil", func() {
 					By("with overwrite")
 
-					merged, err := mergeStruct(targetBaz, sourceBaz, NewOptions())
+					merged, err := mergeStruct(targetBazVal, sourceBazVal, NewOptions())
 					Expect(err).ToNot(HaveOccurred())
-					mergedStruct, ok := merged.(Baz)
+					mergedStruct, ok := merged.Interface().(Baz)
 					Expect(ok).To(BeTrue())
 					Expect(*mergedStruct.Ptr).To(Equal("target"))
 					Expect(*mergedStruct.Slice).To(And(
@@ -742,10 +835,10 @@ var _ = Describe("mergeStruct", func() {
 
 	Context("non-struct type", func() {
 		It("errors", func() {
-			merged, err := mergeStruct(targetStruct, "a string", NewOptions())
+			merged, err := mergeStruct(targetStructVal, reflect.ValueOf("a string"), NewOptions())
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("got non-struct kind (tagret: struct; source: string)"))
-			Expect(merged).To(BeNil())
+			Expect(merged.IsValid()).ToNot(BeTrue())
 		})
 	})
 
@@ -767,11 +860,18 @@ var _ = Describe("mergeStruct", func() {
 			}
 		})
 
+		var targetBazVal, sourceBazVal reflect.Value
+
+		JustBeforeEach(func() {
+			targetBazVal = reflect.ValueOf(targetBaz)
+			sourceBazVal = reflect.ValueOf(sourceBaz)
+		})
+
 		It("errors", func() {
-			merged, err := mergeStruct(targetBaz, sourceBaz, NewOptions())
+			merged, err := mergeStruct(targetBazVal, sourceBazVal, NewOptions())
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("problem with field(private) valid: true; can set: false"))
-			Expect(merged).To(BeNil())
+			Expect(merged.IsValid()).ToNot(BeTrue())
 		})
 	})
 
@@ -790,10 +890,17 @@ var _ = Describe("mergeStruct", func() {
 			}
 		})
 
+		var targetBazVal, sourceBazVal reflect.Value
+
+		JustBeforeEach(func() {
+			targetBazVal = reflect.ValueOf(targetBaz)
+			sourceBazVal = reflect.ValueOf(sourceBaz)
+		})
+
 		It("returns error", func() {
-			merged, err := mergeStruct(targetBaz, sourceBaz, NewOptions())
+			merged, err := mergeStruct(targetBazVal, sourceBazVal, NewOptions())
 			Expect(err).ToNot(HaveOccurred())
-			mergedFoo, ok := merged.(Baz)
+			mergedFoo, ok := merged.Interface().(Baz)
 			Expect(ok).To(BeTrue())
 			Expect(mergedFoo.Foo).To(Equal(1))
 		})
@@ -816,14 +923,21 @@ var _ = Describe("mergeStruct", func() {
 			}
 		})
 
+		var targetBazVal, sourceBazVal reflect.Value
+
+		JustBeforeEach(func() {
+			targetBazVal = reflect.ValueOf(targetBaz)
+			sourceBazVal = reflect.ValueOf(sourceBaz)
+		})
+
 		It("returns error", func() {
 			opt := NewOptions()
-			opt.MergeFuncs.SetTypeMergeFunc(reflect.TypeOf(targetBaz.Foo), func(t, s interface{}, o *Options) (interface{}, error) { return nil, errors.New("bad") })
+			opt.MergeFuncs.SetTypeMergeFunc(reflect.TypeOf(targetBaz.Foo), erroringMergeFunc)
 
-			merged, err := mergeStruct(targetBaz, sourceBaz, opt)
+			merged, err := mergeStruct(targetBazVal, sourceBazVal, opt)
 			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("failed to merge field `Baz.Foo`: bad"))
-			Expect(merged).To(BeNil())
+			Expect(err.Error()).To(ContainSubstring("failed to merge field `Baz.Foo`: returns error"))
+			Expect(merged.IsValid()).ToNot(BeTrue())
 		})
 	})
 
@@ -839,9 +953,12 @@ var _ = Describe("mergeStruct", func() {
 		BeforeEach(func() {
 			opt = NewOptions()
 			// merge func for string returns an int. wont be able to set the field to an int
-			opt.MergeFuncs.SetKindMergeFunc(reflect.String, func(t, s interface{}, o *Options) (interface{}, error) {
-				return 0, nil
-			})
+			opt.MergeFuncs.SetKindMergeFunc(
+				reflect.String,
+				func(t, s reflect.Value, o *Options) (reflect.Value, error) {
+					return reflect.ValueOf(0), nil
+				},
+			)
 
 			targetBaz = Baz{
 				Bar: "target",
@@ -851,11 +968,18 @@ var _ = Describe("mergeStruct", func() {
 			}
 		})
 
+		var targetBazVal, sourceBazVal reflect.Value
+
+		JustBeforeEach(func() {
+			targetBazVal = reflect.ValueOf(targetBaz)
+			sourceBazVal = reflect.ValueOf(sourceBaz)
+		})
+
 		It("errors", func() {
-			merged, err := mergeStruct(targetBaz, sourceBaz, opt)
+			merged, err := mergeStruct(targetBazVal, sourceBazVal, opt)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("types dont match string <> int"))
-			Expect(merged).To(BeNil())
+			Expect(merged.IsValid()).ToNot(BeTrue())
 		})
 	})
 })
