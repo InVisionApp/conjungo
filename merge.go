@@ -46,39 +46,42 @@ func Merge(target, source interface{}, opt *Options) (interface{}, error) {
 	}
 	logrus.Debugf("OPT: %v", opt)
 
-	return merge(target, source, opt)
-}
-
-func merge(target, src interface{}, opt *Options) (interface{}, error) {
-	valS := reflect.ValueOf(src)
-	valT := reflect.ValueOf(target)
-
-	// if source is nil, skip
-	if src == nil ||
-		valS.Kind() == reflect.Ptr && valS.IsNil() {
-		return target, nil
-	}
-
-	// if target is nil write to it
-	if target == nil ||
-		valT.Kind() == reflect.Ptr && valT.IsNil() {
-		return src, nil
-	}
-
-	typeS := reflect.TypeOf(src)
-	typeT := reflect.TypeOf(target)
-
-	// if types do not match, bail
-	if typeT != typeS {
-		return nil, fmt.Errorf("Types do not match: %v, %v", typeT, typeS)
-	}
-
-	// look for a merge function
-	f := opt.MergeFuncs.GetFunc(target)
-	val, err := f(target, src, opt)
+	merged, err := merge(reflect.ValueOf(target), reflect.ValueOf(source), opt)
 	if err != nil {
 		return nil, err
 	}
 
-	return val, nil
+	if !merged.IsValid() {
+		return nil, nil
+	}
+
+	return merged.Interface(), nil
+}
+
+func merge(valT, valS reflect.Value, opt *Options) (reflect.Value, error) {
+	// if source is nil, skip
+	if !valS.IsValid() ||
+		valS.Kind() == reflect.Ptr && valS.IsNil() {
+		return valT, nil
+	}
+
+	// if target is nil write to it
+	if !valT.IsValid() ||
+		valT.Kind() == reflect.Ptr && valT.IsNil() {
+		return valS, nil
+	}
+
+	// if types do not match, bail
+	if valT.Type() != valS.Type() {
+		return reflect.Value{}, fmt.Errorf("Types do not match: %v, %v", valT.Type(), valS.Type())
+	}
+
+	// look for a merge function
+	f := opt.MergeFuncs.GetFunc(valT)
+	val, err := f(valT.Interface(), valS.Interface(), opt)
+	if err != nil {
+		return reflect.Value{}, err
+	}
+
+	return reflect.ValueOf(val), nil
 }

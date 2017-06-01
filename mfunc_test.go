@@ -1,6 +1,7 @@
 package conjungo
 
 import (
+	"errors"
 	"reflect"
 
 	. "github.com/onsi/ginkgo"
@@ -122,7 +123,7 @@ var _ = Describe("GetFunc", func() {
 		})
 
 		It("gets the func", func() {
-			f := fs.GetFunc(key)
+			f := fs.GetFunc(reflect.ValueOf(key))
 			returned, _ := f(nil, nil, NewOptions())
 			Expect(returned).To(Equal(typeStubReturns))
 		})
@@ -130,7 +131,7 @@ var _ = Describe("GetFunc", func() {
 		Context("kind func is also defined", func() {
 			It("choses the type func", func() {
 				fs.SetKindMergeFunc(reflect.TypeOf(key).Kind(), newMergeFuncStub(kindStubReturns))
-				f := fs.GetFunc(key)
+				f := fs.GetFunc(reflect.ValueOf(key))
 				returned, _ := f(nil, nil, NewOptions())
 				Expect(returned).To(Equal(typeStubReturns))
 			})
@@ -141,7 +142,7 @@ var _ = Describe("GetFunc", func() {
 		Context("kind func is defined", func() {
 			It("choses the kind func", func() {
 				fs.SetKindMergeFunc(reflect.TypeOf(key).Kind(), newMergeFuncStub(kindStubReturns))
-				f := fs.GetFunc(key)
+				f := fs.GetFunc(reflect.ValueOf(key))
 				returned, _ := f(nil, nil, NewOptions())
 				Expect(returned).To(Equal(kindStubReturns))
 			})
@@ -151,7 +152,7 @@ var _ = Describe("GetFunc", func() {
 			Context("default func defined", func() {
 				It("choses the default func", func() {
 					fs.SetDefaultMergeFunc(newMergeFuncStub(defaultStubReturns))
-					f := fs.GetFunc(key)
+					f := fs.GetFunc(reflect.ValueOf(key))
 					returned, _ := f(nil, nil, NewOptions())
 					Expect(returned).To(Equal(defaultStubReturns))
 				})
@@ -159,7 +160,7 @@ var _ = Describe("GetFunc", func() {
 
 			Context("no default func defined", func() {
 				It("choses the global default func", func() {
-					f := fs.GetFunc(key)
+					f := fs.GetFunc(reflect.ValueOf(key))
 					returned, _ := f("a", "b", NewOptions())
 					Expect(returned).To(Equal("b"))
 				})
@@ -169,7 +170,7 @@ var _ = Describe("GetFunc", func() {
 
 	Context("no merge funcs defined", func() {
 		It("returns defaultMergeFunc", func() {
-			f := fs.GetFunc(key)
+			f := fs.GetFunc(reflect.ValueOf(key))
 			Expect(f).ToNot(BeNil())
 			merged, _ := f("a", "b", NewOptions())
 			Expect(merged).To(Equal("b"))
@@ -700,10 +701,10 @@ var _ = Describe("mergeStruct", func() {
 		Context("nils", func() {
 			Context("target nil", func() {
 				It("return source", func() {
-					merged, err := merge(nil, sourceStruct, opt)
+					merged, err := merge(reflect.ValueOf(nil), reflect.ValueOf(sourceStruct), opt)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(merged).ToNot(BeNil())
-					mergedStruct, ok := merged.(Foo)
+					mergedStruct, ok := merged.Interface().(Foo)
 					Expect(ok).To(BeTrue())
 					Expect(mergedStruct.Name).To(Equal(sourceStruct.Name))
 					Expect(mergedStruct.Size).To(Equal(sourceStruct.Size))
@@ -713,10 +714,10 @@ var _ = Describe("mergeStruct", func() {
 
 			Context("source nil", func() {
 				It("return target", func() {
-					merged, err := merge(targetStruct, nil, opt)
+					merged, err := merge(reflect.ValueOf(targetStruct), reflect.ValueOf(nil), opt)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(merged).ToNot(BeNil())
-					mergedStruct, ok := merged.(Foo)
+					mergedStruct, ok := merged.Interface().(Foo)
 					Expect(ok).To(BeTrue())
 					Expect(mergedStruct.Name).To(Equal(targetStruct.Name))
 					Expect(mergedStruct.Size).To(Equal(targetStruct.Size))
@@ -731,10 +732,10 @@ var _ = Describe("mergeStruct", func() {
 				type Bar struct {
 					Baz float64
 				}
-				merged, err := merge(targetStruct, Bar{}, opt)
+				merged, err := merge(reflect.ValueOf(targetStruct), reflect.ValueOf(Bar{}), opt)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("Types do not match: conjungo.Foo, conjungo.Bar"))
-				Expect(merged).To(BeNil())
+				Expect(merged.IsValid()).To(BeFalse())
 			})
 		})
 	})
@@ -774,7 +775,7 @@ var _ = Describe("mergeStruct", func() {
 		})
 	})
 
-	Context("merge error on field", func() {
+	Context("can merge interface field contianing different types", func() {
 		type Baz struct {
 			Foo interface{}
 		}
@@ -791,8 +792,37 @@ var _ = Describe("mergeStruct", func() {
 
 		It("returns error", func() {
 			merged, err := mergeStruct(targetBaz, sourceBaz, NewOptions())
+			Expect(err).ToNot(HaveOccurred())
+			mergedFoo, ok := merged.(Baz)
+			Expect(ok).To(BeTrue())
+			Expect(mergedFoo.Foo).To(Equal(1))
+		})
+	})
+
+	Context("merge error on field", func() {
+		type badType string
+
+		type Baz struct {
+			Foo badType
+		}
+		var targetBaz, sourceBaz Baz
+
+		BeforeEach(func() {
+			targetBaz = Baz{
+				Foo: "bad",
+			}
+			sourceBaz = Baz{
+				Foo: "blah",
+			}
+		})
+
+		It("returns error", func() {
+			opt := NewOptions()
+			opt.MergeFuncs.SetTypeMergeFunc(reflect.TypeOf(targetBaz.Foo), func(t, s interface{}, o *Options) (interface{}, error) { return nil, errors.New("bad") })
+
+			merged, err := mergeStruct(targetBaz, sourceBaz, opt)
 			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("failed to merge field `Baz.Foo`: Types do not match: string, int"))
+			Expect(err.Error()).To(ContainSubstring("failed to merge field `Baz.Foo`: bad"))
 			Expect(merged).To(BeNil())
 		})
 	})

@@ -48,9 +48,9 @@ func (f *funcSelector) SetDefaultMergeFunc(mf MergeFunc) {
 // First looks for a merge func defined for its type. Type is the most specific way to categorize something,
 // for example, struct type foo of package bar or map[string]string. Next it looks for a merge func defined for its
 // kind, for example, struct or map. At this point, if nothing matches, it will fall back to the default merge definition.
-func (f *funcSelector) GetFunc(i interface{}) MergeFunc {
+func (f *funcSelector) GetFunc(v reflect.Value) MergeFunc {
 	// prioritize a specific 'type' definition
-	ti := reflect.TypeOf(i)
+	ti := v.Type()
 	if fx, ok := f.typeFuncs[ti]; ok {
 		return fx
 	}
@@ -92,13 +92,13 @@ func mergeMap(t, s interface{}, o *Options) (interface{}, error) {
 		return mapS, nil
 	}
 
-	for k, valS := range mapS {
-		logrus.Debugf("MERGE T<>S '%s' :: %v <> %v", k, mapT[k], valS)
-		val, err := merge(mapT[k], valS, o)
+	for k, vs := range mapS {
+		logrus.Debugf("MERGE T<>S '%s' :: %v <> %v", k, mapT[k], vs)
+		val, err := merge(reflect.ValueOf(mapT[k]), reflect.ValueOf(vs), o)
 		if err != nil {
 			return nil, fmt.Errorf("key '%s': %v", k, err)
 		}
-		mapT[k] = val
+		mapT[k] = val.Interface()
 	}
 
 	return mapT, nil
@@ -137,18 +137,17 @@ func mergeStruct(t, s interface{}, o *Options) (interface{}, error) {
 				newT.Type().Field(i).Name, fieldT.IsValid(), fieldT.CanSet())
 		}
 
-		merged, err := merge(valT.Field(i).Interface(), valS.Field(i).Interface(), o)
+		merged, err := merge(valT.Field(i), valS.Field(i), o)
 		if err != nil {
 			return nil, fmt.Errorf("failed to merge field `%s.%s`: %v",
 				newT.Type().Name(), newT.Type().Field(i).Name, err)
 		}
 
-		merVal := reflect.ValueOf(merged)
-		if fieldT.Type() != merVal.Type() {
-			return nil, fmt.Errorf("types dont match %v <> %v", fieldT.Type(), merVal.Type())
+		if fieldT.Kind() != reflect.Interface && fieldT.Type() != merged.Type() {
+			return nil, fmt.Errorf("types dont match %v <> %v", fieldT.Type(), merged.Type())
 		}
 
-		fieldT.Set(merVal)
+		fieldT.Set(merged)
 	}
 
 	return newT.Interface(), nil
