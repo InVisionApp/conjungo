@@ -71,6 +71,12 @@ func merge(valT, valS reflect.Value, opt *Options) (reflect.Value, error) {
 		return valS, nil
 	}
 
+	// get to the real type
+	if valT.Kind() == reflect.Interface || valS.Kind() == reflect.Interface {
+		valT = reflect.ValueOf(valT.Interface())
+		valS = reflect.ValueOf(valS.Interface())
+	}
+
 	// if types do not match, bail
 	if valT.Type() != valS.Type() {
 		return reflect.Value{}, fmt.Errorf("Types do not match: %v, %v", valT.Type(), valS.Type())

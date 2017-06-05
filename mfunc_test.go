@@ -17,22 +17,22 @@ var _ = Describe("newFuncSelector", func() {
 		fs = newFuncSelector()
 	})
 
-	It("has the correct type mergefuncs", func() {
-		mapMerge, mapOk := fs.typeFuncs[reflect.TypeOf(map[string]interface{}{})]
+	It("has the type mergefuncs map", func() {
+		Expect(fs.typeFuncs).ToNot(BeNil())
+	})
+
+	It("has the correct kind mergeFuncs map", func() {
+		mapMerge, mapOk := fs.kindFuncs[reflect.Map]
 		Expect(mapOk).To(BeTrue())
 		Expect(mapMerge).ToNot(BeNil())
 
-		sliceMerge, sliceOK := fs.typeFuncs[reflect.TypeOf([]interface{}{})]
+		sliceMerge, sliceOK := fs.kindFuncs[reflect.Slice]
 		Expect(sliceOK).To(BeTrue())
 		Expect(sliceMerge).ToNot(BeNil())
 
 		structMerge, structOK := fs.kindFuncs[reflect.Struct]
 		Expect(structOK).To(BeTrue())
 		Expect(structMerge).ToNot(BeNil())
-	})
-
-	It("has kind mergeFuncs map", func() {
-		Expect(fs.kindFuncs).ToNot(BeNil())
 	})
 
 	It("has default mergeFunc", func() {
@@ -303,6 +303,21 @@ var _ = Describe("mergeMap", func() {
 			Expect(subMap["foo"]).To(Equal("unchanged"))
 			Expect(subMap["bar"]).To(Equal("orig"))
 			Expect(subMap["baz"]).To(Equal("added"))
+		})
+	})
+
+	Context("typed maps", func() {
+		It("selects correct func and merges", func() {
+			t := map[int]string{1: "old", 2: "keep"}
+			s := map[int]string{1: "new"}
+
+			mergedVal, err := merge(reflect.ValueOf(t), reflect.ValueOf(s), NewOptions())
+			Expect(err).ToNot(HaveOccurred())
+
+			mergedMap, ok := mergedVal.Interface().(map[int]string)
+			Expect(ok).To(BeTrue())
+			Expect(mergedMap[1]).To(Equal("new"))
+			Expect(mergedMap[2]).To(Equal("keep"))
 		})
 	})
 
@@ -875,7 +890,7 @@ var _ = Describe("mergeStruct", func() {
 		})
 	})
 
-	Context("can merge interface field contianing different types", func() {
+	Context("can not merge interface field containing different types", func() {
 		type Baz struct {
 			Foo interface{}
 		}
@@ -898,11 +913,8 @@ var _ = Describe("mergeStruct", func() {
 		})
 
 		It("returns error", func() {
-			merged, err := mergeStruct(targetBazVal, sourceBazVal, NewOptions())
-			Expect(err).ToNot(HaveOccurred())
-			mergedFoo, ok := merged.Interface().(Baz)
-			Expect(ok).To(BeTrue())
-			Expect(mergedFoo.Foo).To(Equal(1))
+			_, err := mergeStruct(targetBazVal, sourceBazVal, NewOptions())
+			Expect(err).To(HaveOccurred())
 		})
 	})
 

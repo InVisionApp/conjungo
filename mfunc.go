@@ -15,11 +15,10 @@ type funcSelector struct {
 
 func newFuncSelector() *funcSelector {
 	return &funcSelector{
-		typeFuncs: map[reflect.Type]MergeFunc{
-			reflect.TypeOf(map[string]interface{}{}): mergeMap, //recursion becomes less obvious but allows custom handler
-			reflect.TypeOf([]interface{}{}):          mergeSlice,
-		},
+		typeFuncs: map[reflect.Type]MergeFunc{},
 		kindFuncs: map[reflect.Kind]MergeFunc{
+			reflect.Map:    mergeMap,
+			reflect.Slice:  mergeSlice,
 			reflect.Struct: mergeStruct,
 		},
 		defaultFunc: defaultMergeFunc,
@@ -51,6 +50,7 @@ func (f *funcSelector) SetDefaultMergeFunc(mf MergeFunc) {
 func (f *funcSelector) GetFunc(v reflect.Value) MergeFunc {
 	// prioritize a specific 'type' definition
 	ti := v.Type()
+
 	if fx, ok := f.typeFuncs[ti]; ok {
 		return fx
 	}
@@ -85,28 +85,22 @@ func defaultMergeFunc(t, s reflect.Value, o *Options) (reflect.Value, error) {
 
 //TODO: convert this to a kind func that can merge any map
 func mergeMap(t, s reflect.Value, o *Options) (reflect.Value, error) {
-	mapT, okT := t.Interface().(map[string]interface{})
-	mapS, okS := s.Interface().(map[string]interface{})
-	if !okT || !okS {
-		return reflect.Value{}, fmt.Errorf("got non-map type (tagret: %v; source: %v)", t.Type(), s.Type())
+	if t.Kind() != reflect.Map || s.Kind() != reflect.Map {
+		return reflect.Value{}, fmt.Errorf("got non-map type (tagret: %v; source: %v)", t.Kind(), s.Kind())
 	}
 
-	// if empty, use the source
-	if len(mapT) < 1 {
-		return s, nil
-	}
+	keys := s.MapKeys()
 
-	//TODO yuck, use reflect map funcs to do this. dont convert
-	for k, vs := range mapS {
-		logrus.Debugf("MERGE T<>S '%s' :: %v <> %v", k, mapT[k], vs)
-		val, err := merge(reflect.ValueOf(mapT[k]), reflect.ValueOf(vs), o)
+	for _, k := range keys {
+		logrus.Debugf("MERGE T<>S '%s' :: %v <> %v", k, t.MapIndex(k), s.MapIndex(k))
+		val, err := merge(t.MapIndex(k), s.MapIndex(k), o)
 		if err != nil {
 			return reflect.Value{}, fmt.Errorf("key '%s': %v", k, err)
 		}
-		mapT[k] = val.Interface()
+		t.SetMapIndex(k, val)
 	}
 
-	return reflect.ValueOf(mapT), nil
+	return t, nil
 }
 
 func mergeSlice(t, s reflect.Value, o *Options) (reflect.Value, error) {
