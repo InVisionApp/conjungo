@@ -1,6 +1,7 @@
 package conjungo
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 
@@ -83,13 +84,22 @@ func defaultMergeFunc(t, s reflect.Value, o *Options) (reflect.Value, error) {
 	return t, nil
 }
 
-//TODO: convert this to a kind func that can merge any map
-func mergeMap(t, s reflect.Value, o *Options) (reflect.Value, error) {
+func mergeMap(t, s reflect.Value, o *Options) (v reflect.Value, err error) {
 	if t.Kind() != reflect.Map || s.Kind() != reflect.Map {
 		return reflect.Value{}, fmt.Errorf("got non-map type (tagret: %v; source: %v)", t.Kind(), s.Kind())
 	}
 
 	keys := s.MapKeys()
+
+	defer func() {
+		if r := recover(); r != nil {
+			vr := reflect.ValueOf(r)
+			if vr.Kind() == reflect.String {
+				//TODO: make this easier to debug
+				err = errors.New("failed to merge map: " + r.(string))
+			}
+		}
+	}()
 
 	for _, k := range keys {
 		logrus.Debugf("MERGE T<>S '%s' :: %v <> %v", k, t.MapIndex(k), s.MapIndex(k))
@@ -100,9 +110,11 @@ func mergeMap(t, s reflect.Value, o *Options) (reflect.Value, error) {
 		t.SetMapIndex(k, val)
 	}
 
-	return t, nil
+	v = t
+	return
 }
 
+// Merges two slices of the same type by appending source to target.
 func mergeSlice(t, s reflect.Value, o *Options) (reflect.Value, error) {
 	if t.Type() != s.Type() {
 		return reflect.Value{}, fmt.Errorf("slices must have same type: T: %v S: %v", t.Type(), s.Type())

@@ -2,17 +2,19 @@ package conjungo
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
-
-	"github.com/Sirupsen/logrus"
 )
 
 type Options struct {
-	Overwrite  bool
+	// Overwrite a target value with source value even if it already exists
+	Overwrite bool
+
+	// A set of default and customizable functions that define how values are merged
 	MergeFuncs *funcSelector
 
-	// to be used by merge functions to pass values down into recursive calls freely
+	// To be used by merge functions to pass values down into recursive calls freely
 	Context context.Context
 }
 
@@ -25,7 +27,7 @@ func NewOptions() *Options {
 
 // helper to wrap type assertion
 func MergeMapStrIface(target, src map[string]interface{}, opt *Options) (map[string]interface{}, error) {
-	val, err := Merge(target, src, opt)
+	val, err := MergeCopy(target, src, opt)
 	if err != nil {
 		return nil, err
 	}
@@ -39,23 +41,47 @@ func MergeMapStrIface(target, src map[string]interface{}, opt *Options) (map[str
 }
 
 // public wrapper
-func Merge(target, source interface{}, opt *Options) (interface{}, error) {
+func Merge(target, source interface{}, opt *Options) error {
+	vT := reflect.ValueOf(target)
+	vS := reflect.ValueOf(source)
+
+	if vT.Kind() != reflect.Ptr {
+		return errors.New("target must be a pointer")
+	}
+
+	if !reflect.Indirect(vT).IsValid() {
+		return errors.New("can not assign to zero value target. Use MergeCopy")
+	}
+
 	// use defaults if none are provided
 	if opt == nil {
 		opt = NewOptions()
 	}
-	logrus.Debugf("OPT: %v", opt)
 
-	merged, err := merge(reflect.ValueOf(target), reflect.ValueOf(source), opt)
+	//make a copy here so if there is an error mid way, the target stays in tact
+	cp := vT.Elem()
+
+	//TODO reflect.Indirect(vS)?
+	merged, err := merge(cp, vS, opt)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	if !merged.IsValid() {
-		return nil, nil
+	if !isSettable(vT.Elem(), merged) {
+		return fmt.Errorf("Merge failed: expected merged result to be %v but got %v",
+			vT.Elem().Type(), merged.Type())
 	}
 
-	return merged.Interface(), nil
+	vT.Elem().Set(merged)
+	return nil
+}
+
+func isSettable(t, s reflect.Value) bool {
+	if t.Kind() != reflect.Interface && t.Type() != s.Type() {
+		return false
+	}
+
+	return true
 }
 
 func merge(valT, valS reflect.Value, opt *Options) (reflect.Value, error) {

@@ -319,6 +319,29 @@ var _ = Describe("mergeMap", func() {
 			Expect(mergedMap[1]).To(Equal("new"))
 			Expect(mergedMap[2]).To(Equal("keep"))
 		})
+
+		Context("mergeFunc returns wrong type", func() {
+			type Bar struct{}
+
+			It("returns an error", func() {
+				t := map[int]Bar{1: {}}
+				s := map[int]Bar{1: {}}
+
+				opts := NewOptions()
+				// define a merge func that returns wrong type
+				opts.MergeFuncs.SetTypeMergeFunc(
+					reflect.TypeOf(Bar{}),
+					func(t, s reflect.Value, o *Options) (reflect.Value, error) {
+						return reflect.ValueOf("a string"), nil
+					},
+				)
+
+				_, err := merge(reflect.ValueOf(t), reflect.ValueOf(s), opts)
+
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("value of type string is not assignable to type conjungo.Bar"))
+			})
+		})
 	})
 
 	Context("empty target", func() {
@@ -378,6 +401,15 @@ var _ = Describe("mergeMap", func() {
 		})
 	})
 
+	Context("non-map type", func() {
+		It("errors", func() {
+			_, err := mergeMap(reflect.ValueOf("foo"), sourceMapVal, NewOptions())
+
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("got non-map type"))
+		})
+	})
+
 	Context("mismatched field types", func() {
 		It("errors", func() {
 			targetMap["A"] = 0
@@ -397,6 +429,29 @@ var _ = Describe("mergeMap", func() {
 			})
 		})
 	})
+
+	Context("mergeFunc returns different type", func() {
+		type Bar struct{}
+
+		It("if interface, allows to be set", func() {
+			targetMap["E"] = Bar{}
+			sourceMap["E"] = Bar{}
+
+			opts := NewOptions()
+			// define a merge func that returns wrong type
+			opts.MergeFuncs.SetTypeMergeFunc(
+				reflect.TypeOf(Bar{}),
+				func(t, s reflect.Value, o *Options) (reflect.Value, error) {
+					return reflect.ValueOf("a string"), nil
+				},
+			)
+
+			_, err := mergeMap(targetMapVal, sourceMapVal, opts)
+
+			Expect(err).ToNot(HaveOccurred())
+		})
+	})
+
 })
 
 var _ = Describe("mergeSlice", func() {
@@ -571,6 +626,15 @@ var _ = Describe("mergeSlice", func() {
 
 				Expect(merged.IsValid()).ToNot(BeTrue())
 			})
+		})
+
+	})
+
+	Context("slice types are different", func() {
+		It("errors", func() {
+			_, err := mergeSlice(reflect.ValueOf([]int{}), reflect.ValueOf([]string{}), NewOptions())
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("slices must have same type"))
 		})
 	})
 })
