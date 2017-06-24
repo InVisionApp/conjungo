@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -45,12 +46,12 @@ func SimpleMap() {
 		"D": []interface{}{"added", 1},
 	}
 
-	newMap, err := conjungo.MergeMapStrIface(targetMap, sourceMap, nil)
+	err := conjungo.Merge(&targetMap, sourceMap, nil)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
 	}
 
-	marshalIndentPrint(newMap)
+	marshalIndentPrint(targetMap)
 }
 
 func CustomMerge() {
@@ -90,39 +91,40 @@ func CustomMerge() {
 		},
 	)
 
-	newMap, err := conjungo.MergeMapStrIface(targetMap, sourceMap, opts)
+	err := conjungo.Merge(&targetMap, sourceMap, opts)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
 	}
 
-	marshalIndentPrint(newMap)
+	marshalIndentPrint(targetMap)
 }
 
 func NoOverwrite() {
 	targetMap := map[string]interface{}{
-		"A": "wrong",
+		"A": "not overwritten",
 		"B": 1,
 		"C": map[string]string{"foo": "unchanged", "bar": "orig"},
 	}
 
 	sourceMap := map[string]interface{}{
-		"A": "correct",
+		"A": "overwritten",
 		"B": 2,
 		"C": map[string]string{"bar": "newVal", "safe": "added"},
 	}
 
 	opts := conjungo.NewOptions()
 	opts.Overwrite = false
-	newMap, err := conjungo.MergeMapStrIface(targetMap, sourceMap, opts)
+	err := conjungo.Merge(&targetMap, sourceMap, opts)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
 	}
 
-	marshalIndentPrint(newMap)
+	marshalIndentPrint(targetMap)
 }
 
+type jsonString string
+
 func FromJSON() {
-	type jsonString string
 
 	var targetJSON jsonString = `
 	{
@@ -159,21 +161,26 @@ func FromJSON() {
 				return reflect.Value{}, err
 			}
 
-			merged, err := conjungo.MergeMapStrIface(targetMap, sourceMap, o)
+			err := conjungo.Merge(&targetMap, sourceMap, o)
 			if err != nil {
 				return reflect.Value{}, err
 			}
 
-			return reflect.ValueOf(merged), nil
+			mergedJSON, err := json.Marshal(targetMap)
+			if err != nil {
+				return reflect.Value{}, err
+			}
+
+			return reflect.ValueOf(jsonString(mergedJSON)), nil
 		},
 	)
 
-	resultMap, err := conjungo.Merge(targetJSON, sourceJSON, opts)
+	err := conjungo.Merge(&targetJSON, sourceJSON, opts)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
 	}
 
-	marshalIndentPrint(resultMap)
+	fmt.Println(targetJSON)
 }
 
 func marshalIndentPrint(i interface{}) error {
@@ -184,4 +191,14 @@ func marshalIndentPrint(i interface{}) error {
 
 	fmt.Println(string(jBody))
 	return nil
+}
+
+// pretty print
+func (s jsonString) String() string {
+	out := bytes.Buffer{}
+	if err := json.Indent(&out, []byte(string(s)), "", "  "); err != nil {
+		log.Fatal(err)
+	}
+
+	return out.String()
 }

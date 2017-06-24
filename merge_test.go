@@ -494,7 +494,7 @@ var _ = Describe("MergeMapStrIFace", func() {
 			opts := NewOptions()
 			opts.Overwrite = false
 
-			newMap, err = MergeMapStrIface(targetMap, sourceMap, opts)
+			err = Merge(&targetMap, sourceMap, opts)
 		})
 
 		It("does not error", func() {
@@ -502,15 +502,15 @@ var _ = Describe("MergeMapStrIFace", func() {
 		})
 
 		It("does not overwrite a top level string", func() {
-			Expect(newMap["A"]).To(Equal("original"))
+			Expect(targetMap["A"]).To(Equal("original"))
 		})
 
 		It("does not overwrite a top level int", func() {
-			Expect(newMap["B"]).To(Equal(1))
+			Expect(targetMap["B"]).To(Equal(1))
 		})
 
 		It("inserts a new top level string", func() {
-			Expect(newMap["E"]).To(Equal("inserted"))
+			Expect(targetMap["E"]).To(Equal("inserted"))
 		})
 	})
 
@@ -526,35 +526,12 @@ var _ = Describe("MergeMapStrIFace", func() {
 				erroringMergeFunc,
 			)
 
-			newMap, err = MergeMapStrIface(targetMap, sourceMap, opts)
+			err = Merge(&targetMap, sourceMap, opts)
 		})
 
 		It("returns an error", func() {
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("returns error"))
-		})
-	})
-
-	Context("merge returns non-map", func() {
-		BeforeEach(func() {
-			targetMap["F"] = errors.New("some err")
-			sourceMap["F"] = errors.New("other err")
-
-			opts := NewOptions()
-			// define a merge func that returns wrong type
-			opts.MergeFuncs.SetTypeMergeFunc(
-				reflect.TypeOf(map[string]interface{}{}),
-				func(t, s reflect.Value, o *Options) (reflect.Value, error) {
-					return reflect.ValueOf("a string"), nil
-				},
-			)
-
-			_, err = MergeMapStrIface(targetMap, sourceMap, opts)
-		})
-
-		It("returns an error", func() {
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("Merge failed. Expected map[string]interface{} but got string"))
 		})
 	})
 })

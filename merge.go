@@ -25,21 +25,6 @@ func NewOptions() *Options {
 	}
 }
 
-// helper to wrap type assertion
-func MergeMapStrIface(target, src map[string]interface{}, opt *Options) (map[string]interface{}, error) {
-	val, err := MergeCopy(target, src, opt)
-	if err != nil {
-		return nil, err
-	}
-
-	valMap, ok := val.(map[string]interface{})
-	if ok {
-		return valMap, nil
-	}
-
-	return nil, fmt.Errorf("Merge failed. Expected map[string]interface{} but got %v", reflect.TypeOf(val))
-}
-
 // public wrapper
 func Merge(target, source interface{}, opt *Options) error {
 	vT := reflect.ValueOf(target)
