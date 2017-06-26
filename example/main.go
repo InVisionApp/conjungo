@@ -15,12 +15,20 @@ func init() {
 }
 
 func main() {
-	fmt.Println("Simple merge")
+	fmt.Println("Simple map merge")
 	SimpleMap()
+
+	fmt.Println()
+	fmt.Println("Simple struct merge")
+	SimpleStruct()
 
 	fmt.Println()
 	fmt.Println("Custom merge func")
 	CustomMerge()
+
+	fmt.Println()
+	fmt.Println("Custom struct merge func")
+	CustomStructMerge()
 
 	fmt.Println()
 	fmt.Println("No overwrite")
@@ -52,6 +60,36 @@ func SimpleMap() {
 	}
 
 	marshalIndentPrint(targetMap)
+}
+
+func SimpleStruct() {
+	type Foo struct {
+		Name    string
+		Size    int
+		Special bool
+		SubMap  map[string]string
+	}
+
+	targetStruct := Foo{
+		Name:    "target",
+		Size:    2,
+		Special: false,
+		SubMap:  map[string]string{"foo": "unchanged", "bar": "orig"},
+	}
+
+	sourceStruct := Foo{
+		Name:    "source",
+		Size:    4,
+		Special: true,
+		SubMap:  map[string]string{"bar": "newVal", "safe": "added"},
+	}
+
+	err := conjungo.Merge(&targetStruct, sourceStruct, nil)
+	if err != nil {
+		log.Error(err)
+	}
+
+	marshalIndentPrint(targetStruct)
 }
 
 func CustomMerge() {
@@ -97,6 +135,47 @@ func CustomMerge() {
 	}
 
 	marshalIndentPrint(targetMap)
+}
+
+func CustomStructMerge() {
+	type Foo struct {
+		Name string
+		Size int
+	}
+
+	target := Foo{
+		Name: "bar",
+		Size: 25,
+	}
+
+	source := Foo{
+		Name: "baz",
+		Size: 35,
+	}
+
+	opts := conjungo.NewOptions()
+	opts.MergeFuncs.SetTypeMergeFunc(
+		reflect.TypeOf(Foo{}),
+		// merge two 'int' types by adding them together
+		func(t, s reflect.Value, o *conjungo.Options) (reflect.Value, error) {
+			tFoo := t.Interface().(Foo)
+			sFoo := s.Interface().(Foo)
+
+			// names are merged by concatenating them
+			tFoo.Name = tFoo.Name + "." + sFoo.Name
+			// sizes are merged by averaging them
+			tFoo.Size = (tFoo.Size + sFoo.Size) / 2
+
+			return reflect.ValueOf(tFoo), nil
+		},
+	)
+
+	err := conjungo.Merge(&target, source, opts)
+	if err != nil {
+		log.Error(err)
+	}
+
+	marshalIndentPrint(target)
 }
 
 func NoOverwrite() {
