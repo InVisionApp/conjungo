@@ -67,10 +67,7 @@ var _ = Describe("Merge", func() {
 
 			It("merges correctly", func() {
 				err := Merge(&targetMap, sourceMap, NewOptions())
-
 				Expect(err).ToNot(HaveOccurred())
-				//newMap, ok := merged.(map[string]interface{})
-				//Expect(ok).To(BeTrue())
 
 				jsonB, errJson := json.Marshal(targetMap)
 				Expect(errJson).ToNot(HaveOccurred())
