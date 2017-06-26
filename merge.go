@@ -2,17 +2,19 @@ package conjungo
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
-
-	"github.com/Sirupsen/logrus"
 )
 
 type Options struct {
-	Overwrite  bool
+	// Overwrite a target value with source value even if it already exists
+	Overwrite bool
+
+	// A set of default and customizable functions that define how values are merged
 	MergeFuncs *funcSelector
 
-	// to be used by merge functions to pass values down into recursive calls freely
+	// To be used by merge functions to pass values down into recursive calls freely
 	Context context.Context
 }
 
@@ -23,61 +25,79 @@ func NewOptions() *Options {
 	}
 }
 
-// helper to wrap type assertion
-func MergeMapStrIface(target, src map[string]interface{}, opt *Options) (map[string]interface{}, error) {
-	val, err := Merge(target, src, opt)
-	if err != nil {
-		return nil, err
-	}
-
-	valMap, ok := val.(map[string]interface{})
-	if ok {
-		return valMap, nil
-	}
-
-	return nil, fmt.Errorf("Merge failed. Expected map[string]interface{} but got %v", reflect.TypeOf(val))
-}
-
 // public wrapper
-func Merge(target, source interface{}, opt *Options) (interface{}, error) {
+func Merge(target, source interface{}, opt *Options) error {
+	vT := reflect.ValueOf(target)
+	vS := reflect.ValueOf(source)
+
+	if vT.Kind() != reflect.Ptr {
+		return errors.New("target must be a pointer")
+	}
+
+	if !reflect.Indirect(vT).IsValid() {
+		return errors.New("can not assign to zero value target. Use MergeCopy")
+	}
+
 	// use defaults if none are provided
 	if opt == nil {
 		opt = NewOptions()
 	}
-	logrus.Debugf("OPT: %v", opt)
 
-	return merge(target, source, opt)
+	//make a copy here so if there is an error mid way, the target stays in tact
+	cp := vT.Elem()
+
+	//TODO reflect.Indirect(vS)?
+	merged, err := merge(cp, vS, opt)
+	if err != nil {
+		return err
+	}
+
+	if !isSettable(vT.Elem(), merged) {
+		return fmt.Errorf("Merge failed: expected merged result to be %v but got %v",
+			vT.Elem().Type(), merged.Type())
+	}
+
+	vT.Elem().Set(merged)
+	return nil
 }
 
-func merge(target, src interface{}, opt *Options) (interface{}, error) {
-	valS := reflect.ValueOf(src)
-	valT := reflect.ValueOf(target)
+func isSettable(t, s reflect.Value) bool {
+	if t.Kind() != reflect.Interface && t.Type() != s.Type() {
+		return false
+	}
 
+	return true
+}
+
+func merge(valT, valS reflect.Value, opt *Options) (reflect.Value, error) {
 	// if source is nil, skip
-	if src == nil ||
+	if !valS.IsValid() ||
 		valS.Kind() == reflect.Ptr && valS.IsNil() {
-		return target, nil
+		return valT, nil
 	}
 
 	// if target is nil write to it
-	if target == nil ||
+	if !valT.IsValid() ||
 		valT.Kind() == reflect.Ptr && valT.IsNil() {
-		return src, nil
+		return valS, nil
 	}
 
-	typeS := reflect.TypeOf(src)
-	typeT := reflect.TypeOf(target)
+	// get to the real type
+	if valT.Kind() == reflect.Interface || valS.Kind() == reflect.Interface {
+		valT = reflect.ValueOf(valT.Interface())
+		valS = reflect.ValueOf(valS.Interface())
+	}
 
 	// if types do not match, bail
-	if typeT != typeS {
-		return nil, fmt.Errorf("Types do not match: %v, %v", typeT, typeS)
+	if valT.Type() != valS.Type() {
+		return reflect.Value{}, fmt.Errorf("Types do not match: %v, %v", valT.Type(), valS.Type())
 	}
 
 	// look for a merge function
-	f := opt.MergeFuncs.GetFunc(target)
-	val, err := f(target, src, opt)
+	f := opt.MergeFuncs.GetFunc(valT)
+	val, err := f(valT, valS, opt)
 	if err != nil {
-		return nil, err
+		return reflect.Value{}, err
 	}
 
 	return val, nil

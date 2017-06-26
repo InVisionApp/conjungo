@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -14,12 +15,20 @@ func init() {
 }
 
 func main() {
-	fmt.Println("Simple merge")
+	fmt.Println("Simple map merge")
 	SimpleMap()
+
+	fmt.Println()
+	fmt.Println("Simple struct merge")
+	SimpleStruct()
 
 	fmt.Println()
 	fmt.Println("Custom merge func")
 	CustomMerge()
+
+	fmt.Println()
+	fmt.Println("Custom struct merge func")
+	CustomStructMerge()
 
 	fmt.Println()
 	fmt.Println("No overwrite")
@@ -45,12 +54,42 @@ func SimpleMap() {
 		"D": []interface{}{"added", 1},
 	}
 
-	newMap, err := conjungo.MergeMapStrIface(targetMap, sourceMap, nil)
+	err := conjungo.Merge(&targetMap, sourceMap, nil)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
 	}
 
-	marshalIndentPrint(newMap)
+	marshalIndentPrint(targetMap)
+}
+
+func SimpleStruct() {
+	type Foo struct {
+		Name    string
+		Size    int
+		Special bool
+		SubMap  map[string]string
+	}
+
+	targetStruct := Foo{
+		Name:    "target",
+		Size:    2,
+		Special: false,
+		SubMap:  map[string]string{"foo": "unchanged", "bar": "orig"},
+	}
+
+	sourceStruct := Foo{
+		Name:    "source",
+		Size:    4,
+		Special: true,
+		SubMap:  map[string]string{"bar": "newVal", "safe": "added"},
+	}
+
+	err := conjungo.Merge(&targetStruct, sourceStruct, nil)
+	if err != nil {
+		log.Error(err)
+	}
+
+	marshalIndentPrint(targetStruct)
 }
 
 func CustomMerge() {
@@ -74,54 +113,97 @@ func CustomMerge() {
 	opts.MergeFuncs.SetTypeMergeFunc(
 		reflect.TypeOf(0),
 		// merge two 'int' types by adding them together
-		func(t, s interface{}, o *conjungo.Options) (interface{}, error) {
-			iT, _ := t.(int)
-			iS, _ := s.(int)
-			return iT + iS, nil
+		func(t, s reflect.Value, o *conjungo.Options) (reflect.Value, error) {
+			iT, _ := t.Interface().(int)
+			iS, _ := s.Interface().(int)
+			return reflect.ValueOf(iT + iS), nil
 		},
 	)
 
 	opts.MergeFuncs.SetKindMergeFunc(
 		reflect.TypeOf(struct{}{}).Kind(),
 		// merge two 'struct' kinds by replacing the target with the source
-		func(t, s interface{}, o *conjungo.Options) (interface{}, error) {
+		// provides a mechanism to set override = true for just structs
+		func(t, s reflect.Value, o *conjungo.Options) (reflect.Value, error) {
 			return s, nil
 		},
 	)
 
-	newMap, err := conjungo.MergeMapStrIface(targetMap, sourceMap, opts)
+	err := conjungo.Merge(&targetMap, sourceMap, opts)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
 	}
 
-	marshalIndentPrint(newMap)
+	marshalIndentPrint(targetMap)
+}
+
+func CustomStructMerge() {
+	type Foo struct {
+		Name string
+		Size int
+	}
+
+	target := Foo{
+		Name: "bar",
+		Size: 25,
+	}
+
+	source := Foo{
+		Name: "baz",
+		Size: 35,
+	}
+
+	opts := conjungo.NewOptions()
+	opts.MergeFuncs.SetTypeMergeFunc(
+		reflect.TypeOf(Foo{}),
+		// merge two 'int' types by adding them together
+		func(t, s reflect.Value, o *conjungo.Options) (reflect.Value, error) {
+			tFoo := t.Interface().(Foo)
+			sFoo := s.Interface().(Foo)
+
+			// names are merged by concatenating them
+			tFoo.Name = tFoo.Name + "." + sFoo.Name
+			// sizes are merged by averaging them
+			tFoo.Size = (tFoo.Size + sFoo.Size) / 2
+
+			return reflect.ValueOf(tFoo), nil
+		},
+	)
+
+	err := conjungo.Merge(&target, source, opts)
+	if err != nil {
+		log.Error(err)
+	}
+
+	marshalIndentPrint(target)
 }
 
 func NoOverwrite() {
 	targetMap := map[string]interface{}{
-		"A": "wrong",
+		"A": "not overwritten",
 		"B": 1,
 		"C": map[string]string{"foo": "unchanged", "bar": "orig"},
 	}
 
 	sourceMap := map[string]interface{}{
-		"A": "correct",
+		"A": "overwritten",
 		"B": 2,
 		"C": map[string]string{"bar": "newVal", "safe": "added"},
 	}
 
 	opts := conjungo.NewOptions()
 	opts.Overwrite = false
-	newMap, err := conjungo.MergeMapStrIface(targetMap, sourceMap, opts)
+	err := conjungo.Merge(&targetMap, sourceMap, opts)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
 	}
 
-	marshalIndentPrint(newMap)
+	marshalIndentPrint(targetMap)
 }
 
+type jsonString string
+
 func FromJSON() {
-	type jsonString string
 
 	var targetJSON jsonString = `
 	{
@@ -144,30 +226,40 @@ func FromJSON() {
 	opts.MergeFuncs.SetTypeMergeFunc(
 		reflect.TypeOf(jsonString("")),
 		// merge two json strings by unmarshalling them to maps
-		func(t, s interface{}, o *conjungo.Options) (interface{}, error) {
-			targetStr, _ := t.(jsonString)
-			sourceStr, _ := s.(jsonString)
+		func(t, s reflect.Value, o *conjungo.Options) (reflect.Value, error) {
+			targetStr, _ := t.Interface().(jsonString)
+			sourceStr, _ := s.Interface().(jsonString)
 
 			targetMap := map[string]interface{}{}
 			if err := json.Unmarshal([]byte(targetStr), &targetMap); err != nil {
-				return nil, err
+				return reflect.Value{}, err
 			}
 
 			sourceMap := map[string]interface{}{}
 			if err := json.Unmarshal([]byte(sourceStr), &sourceMap); err != nil {
-				return nil, err
+				return reflect.Value{}, err
 			}
 
-			return conjungo.MergeMapStrIface(targetMap, sourceMap, o)
+			err := conjungo.Merge(&targetMap, sourceMap, o)
+			if err != nil {
+				return reflect.Value{}, err
+			}
+
+			mergedJSON, err := json.Marshal(targetMap)
+			if err != nil {
+				return reflect.Value{}, err
+			}
+
+			return reflect.ValueOf(jsonString(mergedJSON)), nil
 		},
 	)
 
-	resultMap, err := conjungo.Merge(targetJSON, sourceJSON, opts)
+	err := conjungo.Merge(&targetJSON, sourceJSON, opts)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
 	}
 
-	marshalIndentPrint(resultMap)
+	fmt.Println(targetJSON)
 }
 
 func marshalIndentPrint(i interface{}) error {
@@ -178,4 +270,14 @@ func marshalIndentPrint(i interface{}) error {
 
 	fmt.Println(string(jBody))
 	return nil
+}
+
+// pretty print
+func (s jsonString) String() string {
+	out := bytes.Buffer{}
+	if err := json.Indent(&out, []byte(string(s)), "", "  "); err != nil {
+		log.Fatal(err)
+	}
+
+	return out.String()
 }

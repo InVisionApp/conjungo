@@ -16,6 +16,12 @@ TEST_PACKAGES      := $(shell go list ./... | grep -v vendor | grep -v fakes)
 .PHONY: help
 .DEFAULT_GOAL := help
 
+run/examples:
+	go run example/main.go
+
+test: ##Run all tests
+	go test ./...
+
 test/codecov: ## Run all tests + open coverage report for all packages
 	for PKG in $(TEST_PACKAGES); do \
 		go test -covermode=$(COVERMODE) -coverprofile=profile.out $$PKG; \

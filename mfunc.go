@@ -1,6 +1,7 @@
 package conjungo
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 
@@ -15,11 +16,10 @@ type funcSelector struct {
 
 func newFuncSelector() *funcSelector {
 	return &funcSelector{
-		typeFuncs: map[reflect.Type]MergeFunc{
-			reflect.TypeOf(map[string]interface{}{}): mergeMap, //recursion becomes less obvious but allows custom handler
-			reflect.TypeOf([]interface{}{}):          mergeSlice,
-		},
+		typeFuncs: map[reflect.Type]MergeFunc{},
 		kindFuncs: map[reflect.Kind]MergeFunc{
+			reflect.Map:    mergeMap,
+			reflect.Slice:  mergeSlice,
 			reflect.Struct: mergeStruct,
 		},
 		defaultFunc: defaultMergeFunc,
@@ -48,9 +48,10 @@ func (f *funcSelector) SetDefaultMergeFunc(mf MergeFunc) {
 // First looks for a merge func defined for its type. Type is the most specific way to categorize something,
 // for example, struct type foo of package bar or map[string]string. Next it looks for a merge func defined for its
 // kind, for example, struct or map. At this point, if nothing matches, it will fall back to the default merge definition.
-func (f *funcSelector) GetFunc(i interface{}) MergeFunc {
+func (f *funcSelector) GetFunc(v reflect.Value) MergeFunc {
 	// prioritize a specific 'type' definition
-	ti := reflect.TypeOf(i)
+	ti := v.Type()
+
 	if fx, ok := f.typeFuncs[ti]; ok {
 		return fx
 	}
@@ -71,11 +72,11 @@ func (f *funcSelector) GetFunc(i interface{}) MergeFunc {
 // Options are also passed in and it is the responsibility of the merge function to handle
 // any variations in behavior that should occur. The value returned from the function will be
 // written to directly to the target map, as long as there is no error.
-type MergeFunc func(interface{}, interface{}, *Options) (interface{}, error)
+type MergeFunc func(reflect.Value, reflect.Value, *Options) (reflect.Value, error)
 
 // The most basic merge function to be used as default behavior. In overwrite mode, it returns the source. Otherwise,
 // it returns the target.
-func defaultMergeFunc(t, s interface{}, o *Options) (interface{}, error) {
+func defaultMergeFunc(t, s reflect.Value, o *Options) (reflect.Value, error) {
 	if o.Overwrite {
 		return s, nil
 	}
@@ -83,39 +84,51 @@ func defaultMergeFunc(t, s interface{}, o *Options) (interface{}, error) {
 	return t, nil
 }
 
-func mergeMap(t, s interface{}, o *Options) (interface{}, error) {
-	mapT, _ := t.(map[string]interface{})
-	mapS, _ := s.(map[string]interface{})
-
-	// if empty, use the source
-	if len(mapT) < 1 {
-		return mapS, nil
+func mergeMap(t, s reflect.Value, o *Options) (v reflect.Value, err error) {
+	if t.Kind() != reflect.Map || s.Kind() != reflect.Map {
+		return reflect.Value{}, fmt.Errorf("got non-map type (tagret: %v; source: %v)", t.Kind(), s.Kind())
 	}
 
-	for k, valS := range mapS {
-		logrus.Debugf("MERGE T<>S '%s' :: %v <> %v", k, mapT[k], valS)
-		val, err := merge(mapT[k], valS, o)
-		if err != nil {
-			return nil, fmt.Errorf("key '%s': %v", k, err)
+	keys := s.MapKeys()
+
+	defer func() {
+		if r := recover(); r != nil {
+			vr := reflect.ValueOf(r)
+			if vr.Kind() == reflect.String {
+				//TODO: make this easier to debug
+				err = errors.New("failed to merge map: " + r.(string))
+			}
 		}
-		mapT[k] = val
+	}()
+
+	for _, k := range keys {
+		logrus.Debugf("MERGE T<>S '%s' :: %v <> %v", k, t.MapIndex(k), s.MapIndex(k))
+		val, err := merge(t.MapIndex(k), s.MapIndex(k), o)
+		if err != nil {
+			return reflect.Value{}, fmt.Errorf("key '%s': %v", k, err)
+		}
+		t.SetMapIndex(k, val)
 	}
 
-	return mapT, nil
+	v = t
+	return
 }
 
-func mergeSlice(t, s interface{}, o *Options) (interface{}, error) {
-	sliceT, _ := t.([]interface{})
-	sliceS, _ := s.([]interface{})
-	return append(sliceT, sliceS...), nil
+// Merges two slices of the same type by appending source to target.
+func mergeSlice(t, s reflect.Value, o *Options) (reflect.Value, error) {
+	if t.Type() != s.Type() {
+		return reflect.Value{}, fmt.Errorf("slices must have same type: T: %v S: %v", t.Type(), s.Type())
+	}
+
+	return reflect.AppendSlice(t, s), nil
 }
 
 // This func is designed to be called by merge().
 // It should not be used on its own because it will panic.
-func mergeStruct(t, s interface{}, o *Options) (interface{}, error) {
+func mergeStruct(t, s reflect.Value, o *Options) (reflect.Value, error) {
 	// accept pointer values, but dereference them
-	valT := reflect.Indirect(reflect.ValueOf(t))
-	valS := reflect.Indirect(reflect.ValueOf(s))
+	valT := reflect.Indirect(t)
+	valS := reflect.Indirect(s)
 	kindT := valT.Kind()
 	kindS := valS.Kind()
 
@@ -124,7 +137,7 @@ func mergeStruct(t, s interface{}, o *Options) (interface{}, error) {
 	okT := kindT == reflect.Struct
 	okS := kindS == reflect.Struct
 	if !okT || !okS {
-		return nil, fmt.Errorf("got non-struct kind (tagret: %v; source: %v)", kindT, kindS)
+		return reflect.Value{}, fmt.Errorf("got non-struct kind (tagret: %v; source: %v)", kindT, kindS)
 	}
 
 	for i := 0; i < valS.NumField(); i++ {
@@ -133,23 +146,22 @@ func mergeStruct(t, s interface{}, o *Options) (interface{}, error) {
 
 		//should never happen because its created above. Maybe remove?
 		if !fieldT.IsValid() || !fieldT.CanSet() {
-			return nil, fmt.Errorf("problem with field(%s) valid: %v; can set: %v",
+			return reflect.Value{}, fmt.Errorf("problem with field(%s) valid: %v; can set: %v",
 				newT.Type().Field(i).Name, fieldT.IsValid(), fieldT.CanSet())
 		}
 
-		merged, err := merge(valT.Field(i).Interface(), valS.Field(i).Interface(), o)
+		merged, err := merge(valT.Field(i), valS.Field(i), o)
 		if err != nil {
-			return nil, fmt.Errorf("failed to merge field `%s.%s`: %v",
+			return reflect.Value{}, fmt.Errorf("failed to merge field `%s.%s`: %v",
 				newT.Type().Name(), newT.Type().Field(i).Name, err)
 		}
 
-		merVal := reflect.ValueOf(merged)
-		if fieldT.Type() != merVal.Type() {
-			return nil, fmt.Errorf("types dont match %v <> %v", fieldT.Type(), merVal.Type())
+		if fieldT.Kind() != reflect.Interface && fieldT.Type() != merged.Type() {
+			return reflect.Value{}, fmt.Errorf("types dont match %v <> %v", fieldT.Type(), merged.Type())
 		}
 
-		fieldT.Set(merVal)
+		fieldT.Set(merged)
 	}
 
-	return newT.Interface(), nil
+	return newT, nil
 }
