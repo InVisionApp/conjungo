@@ -144,12 +144,18 @@ func mergeStruct(t, s reflect.Value, o *Options) (reflect.Value, error) {
 		fieldT := newT.Field(i)
 		logrus.Debug("merging struct field %s", fieldT)
 
-		//should never happen because its created above. Maybe remove?
-		if !fieldT.IsValid() || !fieldT.CanSet() {
-			return reflect.Value{}, fmt.Errorf("problem with field(%s) valid: %v; can set: %v",
-				newT.Type().Field(i).Name, fieldT.IsValid(), fieldT.CanSet())
+		// field is addressable because it's created above. So this means it is unexported.
+		if !fieldT.CanSet() {
+			if o.ErrorOnUnexported {
+				return reflect.Value{}, fmt.Errorf("struct of type %v has unexported field: %s",
+					t.Type().Name(), newT.Type().Field(i).Name)
+			}
+
+			// revert to using the default func instead to treat the struct as single entity
+			return defaultMergeFunc(t, s, o)
 		}
 
+		//fieldT should always be valid because it's created above
 		merged, err := merge(valT.Field(i), valS.Field(i), o)
 		if err != nil {
 			return reflect.Value{}, fmt.Errorf("failed to merge field `%s.%s`: %v",

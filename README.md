@@ -105,6 +105,16 @@ results in:
 }
 ```
 
+### Options
+**Overwrite** `bool`  
+If true, overwrite a target value with source value even if it already exists
+
+**ErrorOnUnexported** `bool`  
+Unexported fields on a struct can not be set. When a struct contains an unexported
+field, the default behavior is to treat the entire struct as a single entity and
+replace according to Overwrite settings.  
+If this is enabled, an error will be thrown instead.
+
 ### Custom Merge Functions
 #### Define a custom merge function for a type:
 ```go
