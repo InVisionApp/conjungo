@@ -11,6 +11,15 @@ type Options struct {
 	// Overwrite a target value with source value even if it already exists
 	Overwrite bool
 
+	// Unexported fields on a struct can not be set. When a struct contains an unexported
+	// field, the default behavior is to treat the entire struct as a single entity and
+	// replace according to Overwrite settings. If this is enabled, an error will be thrown instead.
+	//
+	// Note: this is used by the default mergeStruct function, and may not apply if that is
+	// overwritten with a custom function. Custom struct merge functions should consider
+	// using this value as well.
+	ErrorOnUnexported bool
+
 	// A set of default and customizable functions that define how values are merged
 	MergeFuncs *funcSelector
 
@@ -35,7 +44,7 @@ func Merge(target, source interface{}, opt *Options) error {
 	}
 
 	if !reflect.Indirect(vT).IsValid() {
-		return errors.New("can not assign to zero value target. Use MergeCopy")
+		return errors.New("target can not be zero value")
 	}
 
 	// use defaults if none are provided

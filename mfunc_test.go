@@ -946,11 +946,42 @@ var _ = Describe("mergeStruct", func() {
 			sourceBazVal = reflect.ValueOf(sourceBaz)
 		})
 
-		It("errors", func() {
-			merged, err := mergeStruct(targetBazVal, sourceBazVal, NewOptions())
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("problem with field(private) valid: true; can set: false"))
-			Expect(merged.IsValid()).ToNot(BeTrue())
+		Context("ErrOnUnexported is true", func() {
+			It("errors", func() {
+				opt := NewOptions()
+				opt.ErrorOnUnexported = true
+				merged, err := mergeStruct(targetBazVal, sourceBazVal, opt)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("struct of type Baz has unexported field: private"))
+				Expect(merged.IsValid()).ToNot(BeTrue())
+			})
+		})
+
+		Context("ErrOnUnexported is false", func() {
+			var opt *Options
+
+			BeforeEach(func() {
+				opt = NewOptions()
+				opt.ErrorOnUnexported = false
+			})
+
+			Context("overwrite is true", func() {
+				It("replaces the whole struct", func() {
+					opt.Overwrite = true
+					merged, err := mergeStruct(targetBazVal, sourceBazVal, opt)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(merged).To(Equal(sourceBazVal))
+				})
+			})
+
+			Context("overwrite is true", func() {
+				It("replaces the whole struct", func() {
+					opt.Overwrite = false
+					merged, err := mergeStruct(targetBazVal, sourceBazVal, opt)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(merged).To(Equal(targetBazVal))
+				})
+			})
 		})
 	})
 

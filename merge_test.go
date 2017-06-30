@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -276,6 +277,10 @@ var _ = Describe("Merge", func() {
 				true,
 				false,
 			),
+			Entry("time",
+				time.Now(),
+				time.Now().Add(time.Hour),
+			),
 		)
 
 		Context("merge map", func() {
@@ -354,7 +359,7 @@ var _ = Describe("Merge", func() {
 
 					err := Merge(target, &source, NewOptions())
 					Expect(err).To(HaveOccurred())
-					Expect(err.Error()).To(Equal("can not assign to zero value target. Use MergeCopy"))
+					Expect(err.Error()).To(Equal("target can not be zero value"))
 				})
 			})
 		})
