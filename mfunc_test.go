@@ -861,6 +861,44 @@ var _ = Describe("mergeStruct", func() {
 		})
 	})
 
+	Context("invalid merge value", func() {
+		type Baz struct {
+			Bar *Foo
+		}
+
+		var targetBaz, sourceBaz Baz
+		var targetBazVal, sourceBazVal reflect.Value
+
+		Context("invalid returned from merge", func() {
+			BeforeEach(func() {
+				targetBaz = Baz{
+					Bar: &Foo{},
+				}
+
+				sourceBaz = Baz{
+					Bar: &Foo{},
+				}
+			})
+
+			JustBeforeEach(func() {
+				targetBazVal = reflect.ValueOf(targetBaz)
+				sourceBazVal = reflect.ValueOf(sourceBaz)
+			})
+
+			It("merges them", func() {
+				opt := NewOptions()
+				opt.MergeFuncs.SetTypeMergeFunc(reflect.TypeOf(&Foo{}),
+					func(t, s reflect.Value, o *Options) (reflect.Value, error) {
+						return reflect.ValueOf(nil), nil
+					},
+				)
+				_, err := mergeStruct(targetBazVal, sourceBazVal, opt)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("merged value is invalid"))
+			})
+		})
+	})
+
 	// These are tested through the merge() func because that is what protects against panics
 	Context("invalid entries", func() {
 		var opt *Options
