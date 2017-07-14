@@ -163,8 +163,12 @@ func mergeStruct(t, s reflect.Value, o *Options) (reflect.Value, error) {
 		}
 
 		if !merged.IsValid() {
-			return reflect.Value{}, fmt.Errorf("merged value is invalid for field %s: %v <> %v",
+			logrus.Warnf("merged value is invalid for field %s. Falling back to default merge: %v <> %v",
 				newT.Type().Field(i).Name, valT.Field(i), valS.Field(i))
+
+			// if merge returned an invalid value, fallback to a default merge for the field
+			// defaultMergeFun() does not error
+			merged, _ = defaultMergeFunc(valT.Field(i), valS.Field(i), o)
 		}
 
 		if fieldT.Kind() != reflect.Interface && fieldT.Type() != merged.Type() {

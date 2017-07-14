@@ -207,6 +207,13 @@ var _ = Describe("defaultMergeFunc", func() {
 			Expect(merged.Interface()).To(Equal("a"))
 		})
 	})
+
+	Context("never errors", func() {
+		It("doesnt error", func() {
+			_, err := defaultMergeFunc(reflect.ValueOf(nil), reflect.ValueOf(nil), NewOptions())
+			Expect(err).ToNot(HaveOccurred())
+		})
+	})
 })
 
 var _ = Describe("mergeMap", func() {
@@ -872,11 +879,11 @@ var _ = Describe("mergeStruct", func() {
 		Context("invalid returned from merge", func() {
 			BeforeEach(func() {
 				targetBaz = Baz{
-					Bar: &Foo{},
+					Bar: &Foo{Name: "target"},
 				}
 
 				sourceBaz = Baz{
-					Bar: &Foo{},
+					Bar: &Foo{Name: "source"},
 				}
 			})
 
@@ -885,16 +892,21 @@ var _ = Describe("mergeStruct", func() {
 				sourceBazVal = reflect.ValueOf(sourceBaz)
 			})
 
-			It("merges them", func() {
+			It("merges them using default", func() {
 				opt := NewOptions()
 				opt.MergeFuncs.SetTypeMergeFunc(reflect.TypeOf(&Foo{}),
 					func(t, s reflect.Value, o *Options) (reflect.Value, error) {
 						return reflect.ValueOf(nil), nil
 					},
 				)
-				_, err := mergeStruct(targetBazVal, sourceBazVal, opt)
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("merged value is invalid"))
+
+				merged, err := mergeStruct(targetBazVal, sourceBazVal, opt)
+
+				Expect(err).ToNot(HaveOccurred())
+
+				mBaz, ok := merged.Interface().(Baz)
+				Expect(ok).To(BeTrue())
+				Expect(mBaz.Bar.Name).To(Equal("source"))
 			})
 		})
 	})
