@@ -380,6 +380,64 @@ var _ = Describe("Merge", func() {
 				Expect(target).To(ContainElement(1))
 			})
 		})
+
+		Context("merge struct", func() {
+			type Thing struct {
+				Foo string
+			}
+
+			It("merges correctly", func() {
+				target := Thing{Foo: "bar"}
+				source := Thing{Foo: "baz"}
+
+				err := Merge(&target, source, NewOptions())
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(target.Foo).To(Equal("baz"))
+			})
+
+			It("target struct and source value merges correctly", func() {
+				target := Thing{Foo: "bar"}
+				source := reflect.ValueOf(Thing{Foo: "baz"})
+
+				err := Merge(&target, source, NewOptions())
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(target.Foo).To(Equal("baz"))
+			})
+
+			It("target value and source struct merges correctly", func() {
+				target := Thing{Foo: "bar"}
+				source := Thing{Foo: "baz"}
+
+				tVal := reflect.ValueOf(&target)
+				err := Merge(tVal, source, NewOptions())
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(target.Foo).To(Equal("baz"))
+			})
+
+			It("both values merges correctly", func() {
+				target := Thing{Foo: "bar"}
+				source := reflect.ValueOf(Thing{Foo: "baz"})
+
+				err := Merge(reflect.ValueOf(&target), source, NewOptions())
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(target.Foo).To(Equal("baz"))
+			})
+
+			It("pointer to target value errors", func() {
+				target := Thing{Foo: "bar"}
+				source := reflect.ValueOf(Thing{Foo: "baz"})
+
+				tVal := reflect.ValueOf(&target)
+				err := Merge(tVal, source, NewOptions())
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(target.Foo).To(Equal("baz"))
+			})
+		})
 	})
 
 	Context("failure modes", func() {

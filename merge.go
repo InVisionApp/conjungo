@@ -39,6 +39,13 @@ func Merge(target, source interface{}, opt *Options) error {
 	vT := reflect.ValueOf(target)
 	vS := reflect.ValueOf(source)
 
+	if target != nil && vT.Type() == reflect.TypeOf(reflect.Value{}) {
+		vT = vT.Interface().(reflect.Value)
+	}
+	if source != nil && vS.Type() == reflect.TypeOf(reflect.Value{}) {
+		vS = vS.Interface().(reflect.Value)
+	}
+
 	if vT.Kind() != reflect.Ptr {
 		return errors.New("target must be a pointer")
 	}
