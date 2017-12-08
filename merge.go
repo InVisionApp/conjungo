@@ -34,15 +34,17 @@ func NewOptions() *Options {
 	}
 }
 
+var valType = reflect.TypeOf(reflect.Value{})
+
 // public wrapper
 func Merge(target, source interface{}, opt *Options) error {
 	vT := reflect.ValueOf(target)
 	vS := reflect.ValueOf(source)
 
-	if target != nil && vT.Type() == reflect.TypeOf(reflect.Value{}) {
+	if target != nil && vT.Type() == valType {
 		vT = vT.Interface().(reflect.Value)
 	}
-	if source != nil && vS.Type() == reflect.TypeOf(reflect.Value{}) {
+	if source != nil && vS.Type() == valType {
 		vS = vS.Interface().(reflect.Value)
 	}
 
