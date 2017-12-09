@@ -64,8 +64,7 @@ func Merge(target, source interface{}, opt *Options) error {
 	//make a copy here so if there is an error mid way, the target stays in tact
 	cp := vT.Elem()
 
-	//TODO reflect.Indirect(vS)?
-	merged, err := merge(cp, vS, opt)
+	merged, err := merge(cp, reflect.Indirect(vS), opt)
 	if err != nil {
 		return err
 	}

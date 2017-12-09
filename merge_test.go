@@ -364,6 +364,20 @@ var _ = Describe("Merge", func() {
 			})
 		})
 
+		Context("pointers", func() {
+			Context("both pointers", func() {
+				It("merges correctly", func() {
+					source := "bar"
+					var target string
+
+					err := Merge(&target, &source, NewOptions())
+					Expect(err).ToNot(HaveOccurred())
+
+					Expect(target).To(Equal("bar"))
+				})
+			})
+		})
+
 		Context("merge slice", func() {
 			It("merges correctly", func() {
 				target := []interface{}{"unchanged", 0}
@@ -438,6 +452,19 @@ var _ = Describe("Merge", func() {
 				Expect(target.Foo).To(Equal("baz"))
 			})
 		})
+
+		Context("merge errors (interfaces)", func() {
+			It("merges", func() {
+				target := errors.New("some err")
+				source := errors.New("other err")
+
+				opts := NewOptions()
+				err := Merge(target, source, opts)
+
+				Expect(err).ToNot(HaveOccurred())
+				Expect(target.Error()).To(ContainSubstring("other"))
+			})
+		})
 	})
 
 	Context("failure modes", func() {
@@ -457,11 +484,13 @@ var _ = Describe("Merge", func() {
 
 				opts := NewOptions()
 				// define a merge func that always errors for the error type
+				ve := reflect.ValueOf(errors.New(""))
 				opts.MergeFuncs.SetTypeMergeFunc(
-					reflect.TypeOf(errors.New("")),
+					// error is an interface around *errors.errorString so dereference
+					reflect.Indirect(ve).Type(),
 					erroringMergeFunc,
 				)
-				err := Merge(&target, source, opts)
+				err := Merge(target, source, opts)
 
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("returns error"))
