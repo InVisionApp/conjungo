@@ -1,7 +1,6 @@
 package conjungo
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 
@@ -93,11 +92,7 @@ func mergeMap(t, s reflect.Value, o *Options) (v reflect.Value, err error) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			vr := reflect.ValueOf(r)
-			if vr.Kind() == reflect.String {
-				//TODO: make this easier to debug
-				err = errors.New("failed to merge map: " + r.(string))
-			}
+			err = fmt.Errorf("failed to merge map: %v", r)
 		}
 	}()
 
@@ -142,7 +137,7 @@ func mergeStruct(t, s reflect.Value, o *Options) (reflect.Value, error) {
 
 	for i := 0; i < valS.NumField(); i++ {
 		fieldT := newT.Field(i)
-		logrus.Debug("merging struct field %s", fieldT)
+		logrus.Debugf("merging struct field %s", fieldT)
 
 		// field is addressable because it's created above. So this means it is unexported.
 		if !fieldT.CanSet() {
