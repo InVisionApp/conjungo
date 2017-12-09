@@ -625,6 +625,54 @@ var _ = Describe("MergeMapStrIFace", func() {
 	})
 })
 
+var _ = Describe("isEmpty", func() {
+	It("not empty", func() {
+		res := isEmpty(reflect.ValueOf("not empty"))
+		Expect(res).ToNot(BeTrue())
+	})
+
+	It("not valid", func() {
+		res := isEmpty(reflect.ValueOf(nil))
+		Expect(res).To(BeTrue())
+	})
+
+	It("empty map", func() {
+		var v map[string]interface{}
+		res := isEmpty(reflect.ValueOf(v))
+		Expect(res).To(BeTrue())
+	})
+
+	It("empty slice", func() {
+		var v []interface{}
+		res := isEmpty(reflect.ValueOf(v))
+		Expect(res).To(BeTrue())
+	})
+
+	It("nil pointer", func() {
+		var v *int = nil
+		res := isEmpty(reflect.ValueOf(v))
+		Expect(res).To(BeTrue())
+	})
+
+	It("nil chan", func() {
+		var v chan int
+		res := isEmpty(reflect.ValueOf(v))
+		Expect(res).To(BeTrue())
+	})
+
+	It("nil func", func() {
+		var v func()
+		res := isEmpty(reflect.ValueOf(v))
+		Expect(res).To(BeTrue())
+	})
+
+	It("nil interface", func() {
+		var v interface{}
+		res := isEmpty(reflect.ValueOf(v))
+		Expect(res).To(BeTrue())
+	})
+})
+
 func erroringMergeFunc(t, s reflect.Value, o *Options) (reflect.Value, error) {
 	return reflect.Value{}, errors.New("returns error")
 }
