@@ -381,12 +381,20 @@ var _ = Describe("mergeMap", func() {
 		// these are called via merge() because that is what does the nil checks
 		By("call via merge()")
 
-		Context("nil target", func() {
-			JustBeforeEach(func() {
-				targetMapVal = reflect.Value{}
-			})
-
+		Context("nil value target", func() {
 			It("equals source", func() {
+				targetMapVal = reflect.Value{}
+				merged, err := merge(targetMapVal, sourceMapVal, NewOptions())
+
+				Expect(err).ToNot(HaveOccurred())
+				Expect(merged.Interface()).To(Equal(sourceMap))
+			})
+		})
+
+		Context("nil map target", func() {
+			It("equals source", func() {
+				var m map[string]interface{}
+				targetMapVal = reflect.ValueOf(m)
 				merged, err := merge(targetMapVal, sourceMapVal, NewOptions())
 
 				Expect(err).ToNot(HaveOccurred())
@@ -592,6 +600,17 @@ var _ = Describe("mergeSlice", func() {
 					ContainElement(0),
 					ContainElement(3.6),
 				))
+			})
+		})
+
+		Context("nil slice target", func() {
+			It("equals source", func() {
+				var m []interface{}
+				targetSliceVal = reflect.ValueOf(m)
+				merged, err := merge(targetSliceVal, sourceSliceVal, NewOptions())
+
+				Expect(err).ToNot(HaveOccurred())
+				Expect(merged.Interface()).To(Equal(sourceSlice))
 			})
 		})
 

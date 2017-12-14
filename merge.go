@@ -34,10 +34,19 @@ func NewOptions() *Options {
 	}
 }
 
+var valType = reflect.TypeOf(reflect.Value{})
+
 // public wrapper
 func Merge(target, source interface{}, opt *Options) error {
 	vT := reflect.ValueOf(target)
 	vS := reflect.ValueOf(source)
+
+	if target != nil && vT.Type() == valType {
+		vT = vT.Interface().(reflect.Value)
+	}
+	if source != nil && vS.Type() == valType {
+		vS = vS.Interface().(reflect.Value)
+	}
 
 	if vT.Kind() != reflect.Ptr {
 		return errors.New("target must be a pointer")
@@ -55,8 +64,7 @@ func Merge(target, source interface{}, opt *Options) error {
 	//make a copy here so if there is an error mid way, the target stays in tact
 	cp := vT.Elem()
 
-	//TODO reflect.Indirect(vS)?
-	merged, err := merge(cp, vS, opt)
+	merged, err := merge(cp, reflect.Indirect(vS), opt)
 	if err != nil {
 		return err
 	}
@@ -80,14 +88,12 @@ func isSettable(t, s reflect.Value) bool {
 
 func merge(valT, valS reflect.Value, opt *Options) (reflect.Value, error) {
 	// if source is nil, skip
-	if !valS.IsValid() ||
-		valS.Kind() == reflect.Ptr && valS.IsNil() {
+	if isEmpty(valS) {
 		return valT, nil
 	}
 
 	// if target is nil write to it
-	if !valT.IsValid() ||
-		valT.Kind() == reflect.Ptr && valT.IsNil() {
+	if isEmpty(valT) {
 		return valS, nil
 	}
 
@@ -110,4 +116,20 @@ func merge(valT, valS reflect.Value, opt *Options) (reflect.Value, error) {
 	}
 
 	return val, nil
+}
+
+func isEmpty(val reflect.Value) bool {
+	// is zero value
+	if !val.IsValid() {
+		return true
+	}
+
+	switch val.Kind() {
+	case reflect.Ptr, reflect.Map, reflect.Chan, reflect.Func, reflect.Interface, reflect.Slice:
+		if val.IsNil() {
+			return true
+		}
+	}
+
+	return false
 }

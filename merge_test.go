@@ -364,6 +364,20 @@ var _ = Describe("Merge", func() {
 			})
 		})
 
+		Context("pointers", func() {
+			Context("both pointers", func() {
+				It("merges correctly", func() {
+					source := "bar"
+					var target string
+
+					err := Merge(&target, &source, NewOptions())
+					Expect(err).ToNot(HaveOccurred())
+
+					Expect(target).To(Equal("bar"))
+				})
+			})
+		})
+
 		Context("merge slice", func() {
 			It("merges correctly", func() {
 				target := []interface{}{"unchanged", 0}
@@ -378,6 +392,77 @@ var _ = Describe("Merge", func() {
 				Expect(target).To(ContainElement(0))
 				Expect(target).To(ContainElement("added"))
 				Expect(target).To(ContainElement(1))
+			})
+		})
+
+		Context("merge struct", func() {
+			type Thing struct {
+				Foo string
+			}
+
+			It("merges correctly", func() {
+				target := Thing{Foo: "bar"}
+				source := Thing{Foo: "baz"}
+
+				err := Merge(&target, source, NewOptions())
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(target.Foo).To(Equal("baz"))
+			})
+
+			It("target struct and source value merges correctly", func() {
+				target := Thing{Foo: "bar"}
+				source := reflect.ValueOf(Thing{Foo: "baz"})
+
+				err := Merge(&target, source, NewOptions())
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(target.Foo).To(Equal("baz"))
+			})
+
+			It("target value and source struct merges correctly", func() {
+				target := Thing{Foo: "bar"}
+				source := Thing{Foo: "baz"}
+
+				tVal := reflect.ValueOf(&target)
+				err := Merge(tVal, source, NewOptions())
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(target.Foo).To(Equal("baz"))
+			})
+
+			It("both values merges correctly", func() {
+				target := Thing{Foo: "bar"}
+				source := reflect.ValueOf(Thing{Foo: "baz"})
+
+				err := Merge(reflect.ValueOf(&target), source, NewOptions())
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(target.Foo).To(Equal("baz"))
+			})
+
+			It("pointer to target value errors", func() {
+				target := Thing{Foo: "bar"}
+				source := reflect.ValueOf(Thing{Foo: "baz"})
+
+				tVal := reflect.ValueOf(&target)
+				err := Merge(tVal, source, NewOptions())
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(target.Foo).To(Equal("baz"))
+			})
+		})
+
+		Context("merge errors (interfaces)", func() {
+			It("merges", func() {
+				target := errors.New("some err")
+				source := errors.New("other err")
+
+				opts := NewOptions()
+				err := Merge(target, source, opts)
+
+				Expect(err).ToNot(HaveOccurred())
+				Expect(target.Error()).To(ContainSubstring("other"))
 			})
 		})
 	})
@@ -399,11 +484,13 @@ var _ = Describe("Merge", func() {
 
 				opts := NewOptions()
 				// define a merge func that always errors for the error type
+				ve := reflect.ValueOf(errors.New(""))
 				opts.MergeFuncs.SetTypeMergeFunc(
-					reflect.TypeOf(errors.New("")),
+					// error is an interface around *errors.errorString so dereference
+					reflect.Indirect(ve).Type(),
 					erroringMergeFunc,
 				)
-				err := Merge(&target, source, opts)
+				err := Merge(target, source, opts)
 
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("returns error"))
@@ -535,6 +622,54 @@ var _ = Describe("MergeMapStrIFace", func() {
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("returns error"))
 		})
+	})
+})
+
+var _ = Describe("isEmpty", func() {
+	It("not empty", func() {
+		res := isEmpty(reflect.ValueOf("not empty"))
+		Expect(res).ToNot(BeTrue())
+	})
+
+	It("not valid", func() {
+		res := isEmpty(reflect.ValueOf(nil))
+		Expect(res).To(BeTrue())
+	})
+
+	It("empty map", func() {
+		var v map[string]interface{}
+		res := isEmpty(reflect.ValueOf(v))
+		Expect(res).To(BeTrue())
+	})
+
+	It("empty slice", func() {
+		var v []interface{}
+		res := isEmpty(reflect.ValueOf(v))
+		Expect(res).To(BeTrue())
+	})
+
+	It("nil pointer", func() {
+		var v *int = nil
+		res := isEmpty(reflect.ValueOf(v))
+		Expect(res).To(BeTrue())
+	})
+
+	It("nil chan", func() {
+		var v chan int
+		res := isEmpty(reflect.ValueOf(v))
+		Expect(res).To(BeTrue())
+	})
+
+	It("nil func", func() {
+		var v func()
+		res := isEmpty(reflect.ValueOf(v))
+		Expect(res).To(BeTrue())
+	})
+
+	It("nil interface", func() {
+		var v interface{}
+		res := isEmpty(reflect.ValueOf(v))
+		Expect(res).To(BeTrue())
 	})
 })
 

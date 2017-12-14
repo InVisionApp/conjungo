@@ -7,7 +7,7 @@ import (
 	"reflect"
 
 	"github.com/InVisionApp/conjungo"
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 func init() {
