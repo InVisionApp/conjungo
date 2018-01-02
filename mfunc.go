@@ -7,6 +7,12 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// A MergeFunc defines how two items of the same type are merged together.
+// Options are also passed in and it is the responsibility of the merge function to handle
+// any variations in behavior that should occur. The value returned from the function will be
+// written to directly to the target map, as long as there is no error.
+type MergeFunc func(reflect.Value, reflect.Value, *Options) (reflect.Value, error)
+
 type funcSelector struct {
 	typeFuncs   map[reflect.Type]MergeFunc
 	kindFuncs   map[reflect.Kind]MergeFunc
@@ -66,12 +72,6 @@ func (f *funcSelector) GetFunc(v reflect.Value) MergeFunc {
 
 	return defaultMergeFunc
 }
-
-// A function which defines how two items of the same type are merged together.
-// Options are also passed in and it is the responsibility of the merge function to handle
-// any variations in behavior that should occur. The value returned from the function will be
-// written to directly to the target map, as long as there is no error.
-type MergeFunc func(reflect.Value, reflect.Value, *Options) (reflect.Value, error)
 
 // The most basic merge function to be used as default behavior. In overwrite mode, it returns the source. Otherwise,
 // it returns the target.

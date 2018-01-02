@@ -7,6 +7,8 @@ import (
 	"reflect"
 )
 
+// Options is used to determine the behavior of a merge
+// It also holds the collection of functions used to determine merge behavior of various types
 type Options struct {
 	// Overwrite a target value with source value even if it already exists
 	Overwrite bool
@@ -21,12 +23,18 @@ type Options struct {
 	ErrorOnUnexported bool
 
 	// A set of default and customizable functions that define how values are merged
+	// Use the following to define custom merge behavior
+	//		MergeFuncs.SetTypeMergeFunc(t reflect.Type, mf MergeFunc)
+	//		MergeFuncs.SetKindMergeFunc(k reflect.Kind, mf MergeFunc)
+	//		MergeFuncs.SetDefaultMergeFunc(mf MergeFunc)
 	MergeFuncs *funcSelector
 
 	// To be used by merge functions to pass values down into recursive calls freely
 	Context context.Context
 }
 
+// NewOptions generates default Options. Overwrite is set to true, and a set of
+// default merge function definitions are added.
 func NewOptions() *Options {
 	return &Options{
 		Overwrite:  true,
@@ -36,7 +44,8 @@ func NewOptions() *Options {
 
 var valType = reflect.TypeOf(reflect.Value{})
 
-// public wrapper
+// Merge the source onto the target following the options given. If options is nil,
+// defaults will be used.
 func Merge(target, source interface{}, opt *Options) error {
 	vT := reflect.ValueOf(target)
 	vS := reflect.ValueOf(source)
