@@ -32,6 +32,43 @@ var _ = Describe("Options", func() {
 			Expect(testOpts.mergeFuncs).ToNot(BeNil())
 		})
 	})
+
+	Context("set merge funcs", func() {
+		var (
+			opt *Options
+			mf  MergeFunc
+		)
+
+		BeforeEach(func() {
+			opt = NewOptions()
+			mf = func(t, s reflect.Value, o *Options) (reflect.Value, error) {
+				return reflect.Value{}, errors.New("special error")
+			}
+		})
+
+		It("SetTypeMergeFunc sets func", func() {
+			t := reflect.TypeOf("")
+			opt.SetTypeMergeFunc(t, mf)
+
+			_, err := opt.mergeFuncs.typeFuncs[t](reflect.Value{}, reflect.Value{}, nil)
+			Expect(err.Error()).To(Equal("special error"))
+		})
+
+		It("SetKindMergeFunc sets func", func() {
+			k := reflect.ValueOf("").Kind()
+			opt.SetKindMergeFunc(k, mf)
+
+			_, err := opt.mergeFuncs.kindFuncs[k](reflect.Value{}, reflect.Value{}, nil)
+			Expect(err.Error()).To(Equal("special error"))
+		})
+
+		It("SetDefaultMergeFunc sets func", func() {
+			opt.SetDefaultMergeFunc(mf)
+
+			_, err := opt.mergeFuncs.defaultFunc(reflect.Value{}, reflect.Value{}, nil)
+			Expect(err.Error()).To(Equal("special error"))
+		})
+	})
 })
 
 var _ = Describe("Merge", func() {
