@@ -465,6 +465,20 @@ var _ = Describe("Merge", func() {
 				Expect(target.Error()).To(ContainSubstring("other"))
 			})
 		})
+
+		Context("merge functions", func() {
+			It("merges", func() {
+				target := func() string { return "no" }
+				source := func() string { return "yes" }
+
+				opts := NewOptions()
+				err := Merge(&target, source, opts)
+
+				Expect(err).ToNot(HaveOccurred())
+				ret := reflect.ValueOf(target).Call(nil)
+				Expect(ret[0].Interface()).To(Equal("yes"))
+			})
+		})
 	})
 
 	Context("failure modes", func() {
