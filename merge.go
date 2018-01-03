@@ -7,8 +7,9 @@ import (
 	"reflect"
 )
 
-// Options is used to determine the behavior of a merge
-// It also holds the collection of functions used to determine merge behavior of various types
+// Options is used to determine the behavior of a merge.
+// It also holds the collection of functions used to determine merge behavior of various types.
+// Always use NewOptions() to generate options and then modify as needed.
 type Options struct {
 	// Overwrite a target value with source value even if it already exists
 	Overwrite bool
@@ -97,6 +98,10 @@ func Merge(target, source interface{}, opt *Options) error {
 	// use defaults if none are provided
 	if opt == nil {
 		opt = NewOptions()
+	}
+
+	if opt.mergeFuncs == nil {
+		return errors.New("invalid options, use NewOptions() to generate and then modify as needed")
 	}
 
 	//make a copy here so if there is an error mid way, the target stays in tact

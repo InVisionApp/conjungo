@@ -560,6 +560,18 @@ var _ = Describe("Merge", func() {
 			})
 		})
 
+		Context("NewOptions not used to create options", func() {
+			It("returns an error", func() {
+				target := ""
+				source := ""
+
+				err := Merge(&target, source, &Options{})
+
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("use NewOptions()"))
+			})
+		})
+
 		Context("type mismatch deeper in the tree", func() {
 			It("returns an error", func() {
 				testKey := "theKey"
