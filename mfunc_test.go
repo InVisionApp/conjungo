@@ -55,7 +55,7 @@ var _ = Describe("Set Merge Func", func() {
 		It("adds the func correctly", func() {
 			stubReturns := "uniqe string"
 			t := reflect.TypeOf(TestKey{})
-			fs.SetTypeMergeFunc(t, newMergeFuncStub(stubReturns))
+			fs.setTypeMergeFunc(t, newMergeFuncStub(stubReturns))
 			returned, _ := fs.typeFuncs[t](reflect.Value{}, reflect.Value{}, NewOptions())
 			Expect(returned.Interface()).To(Equal(stubReturns))
 		})
@@ -65,7 +65,7 @@ var _ = Describe("Set Merge Func", func() {
 		It("adds the func correctly", func() {
 			stubReturns := "uniqe string"
 			k := reflect.TypeOf(TestKey{}).Kind()
-			fs.SetKindMergeFunc(k, newMergeFuncStub(stubReturns))
+			fs.setKindMergeFunc(k, newMergeFuncStub(stubReturns))
 			returned, _ := fs.kindFuncs[k](reflect.Value{}, reflect.Value{}, NewOptions())
 
 			Expect(returned.Interface()).To(Equal(stubReturns))
@@ -75,7 +75,7 @@ var _ = Describe("Set Merge Func", func() {
 	Context("Default Func", func() {
 		It("adds the func correctly", func() {
 			stubReturns := "uniqe string"
-			fs.SetDefaultMergeFunc(newMergeFuncStub(stubReturns))
+			fs.setDefaultMergeFunc(newMergeFuncStub(stubReturns))
 			returned, _ := fs.defaultFunc(reflect.Value{}, reflect.Value{}, NewOptions())
 
 			Expect(returned.Interface()).To(Equal(stubReturns))
@@ -90,9 +90,9 @@ var _ = Describe("Set Merge Func", func() {
 			t := reflect.TypeOf(TestKey{})
 			k := reflect.TypeOf(TestKey{}).Kind()
 
-			fs.SetTypeMergeFunc(t, f)
-			fs.SetKindMergeFunc(k, f)
-			fs.SetDefaultMergeFunc(f)
+			fs.setTypeMergeFunc(t, f)
+			fs.setKindMergeFunc(k, f)
+			fs.setDefaultMergeFunc(f)
 		})
 	})
 })
@@ -118,19 +118,19 @@ var _ = Describe("GetFunc", func() {
 
 	Context("Type Func is defined", func() {
 		BeforeEach(func() {
-			fs.SetTypeMergeFunc(reflect.TypeOf(key), newMergeFuncStub(typeStubReturns))
+			fs.setTypeMergeFunc(reflect.TypeOf(key), newMergeFuncStub(typeStubReturns))
 		})
 
 		It("gets the func", func() {
-			f := fs.GetFunc(reflect.ValueOf(key))
+			f := fs.getFunc(reflect.ValueOf(key))
 			returned, _ := f(reflect.Value{}, reflect.Value{}, NewOptions())
 			Expect(returned.Interface()).To(Equal(typeStubReturns))
 		})
 
 		Context("kind func is also defined", func() {
 			It("choses the type func", func() {
-				fs.SetKindMergeFunc(reflect.TypeOf(key).Kind(), newMergeFuncStub(kindStubReturns))
-				f := fs.GetFunc(reflect.ValueOf(key))
+				fs.setKindMergeFunc(reflect.TypeOf(key).Kind(), newMergeFuncStub(kindStubReturns))
+				f := fs.getFunc(reflect.ValueOf(key))
 				returned, _ := f(reflect.Value{}, reflect.Value{}, NewOptions())
 				Expect(returned.Interface()).To(Equal(typeStubReturns))
 			})
@@ -140,8 +140,8 @@ var _ = Describe("GetFunc", func() {
 	Context("no type func defined", func() {
 		Context("kind func is defined", func() {
 			It("choses the kind func", func() {
-				fs.SetKindMergeFunc(reflect.TypeOf(key).Kind(), newMergeFuncStub(kindStubReturns))
-				f := fs.GetFunc(reflect.ValueOf(key))
+				fs.setKindMergeFunc(reflect.TypeOf(key).Kind(), newMergeFuncStub(kindStubReturns))
+				f := fs.getFunc(reflect.ValueOf(key))
 				returned, _ := f(reflect.Value{}, reflect.Value{}, NewOptions())
 				Expect(returned.Interface()).To(Equal(kindStubReturns))
 			})
@@ -150,8 +150,8 @@ var _ = Describe("GetFunc", func() {
 		Context("no kind func defined", func() {
 			Context("default func defined", func() {
 				It("choses the default func", func() {
-					fs.SetDefaultMergeFunc(newMergeFuncStub(defaultStubReturns))
-					f := fs.GetFunc(reflect.ValueOf(key))
+					fs.setDefaultMergeFunc(newMergeFuncStub(defaultStubReturns))
+					f := fs.getFunc(reflect.ValueOf(key))
 					returned, _ := f(reflect.Value{}, reflect.Value{}, NewOptions())
 					Expect(returned.Interface()).To(Equal(defaultStubReturns))
 				})
@@ -159,7 +159,7 @@ var _ = Describe("GetFunc", func() {
 
 			Context("no default func defined", func() {
 				It("choses the global default func", func() {
-					f := fs.GetFunc(reflect.ValueOf(key))
+					f := fs.getFunc(reflect.ValueOf(key))
 					returned, _ := f(reflect.ValueOf("a"), reflect.ValueOf("b"), NewOptions())
 					Expect(returned.Interface()).To(Equal("b"))
 				})
@@ -169,7 +169,7 @@ var _ = Describe("GetFunc", func() {
 
 	Context("no merge funcs defined", func() {
 		It("returns defaultMergeFunc", func() {
-			f := fs.GetFunc(reflect.ValueOf(key))
+			f := fs.getFunc(reflect.ValueOf(key))
 			Expect(f).ToNot(BeNil())
 			merged, _ := f(reflect.ValueOf("a"), reflect.ValueOf("b"), NewOptions())
 			Expect(merged.Interface()).To(Equal("b"))
@@ -336,7 +336,7 @@ var _ = Describe("mergeMap", func() {
 
 				opts := NewOptions()
 				// define a merge func that returns wrong type
-				opts.MergeFuncs.SetTypeMergeFunc(
+				opts.mergeFuncs.setTypeMergeFunc(
 					reflect.TypeOf(Bar{}),
 					func(t, s reflect.Value, o *Options) (reflect.Value, error) {
 						return reflect.ValueOf("a string"), nil
@@ -454,7 +454,7 @@ var _ = Describe("mergeMap", func() {
 
 			opts := NewOptions()
 			// define a merge func that returns wrong type
-			opts.MergeFuncs.SetTypeMergeFunc(
+			opts.mergeFuncs.setTypeMergeFunc(
 				reflect.TypeOf(Bar{}),
 				func(t, s reflect.Value, o *Options) (reflect.Value, error) {
 					return reflect.ValueOf("a string"), nil
@@ -913,7 +913,7 @@ var _ = Describe("mergeStruct", func() {
 
 			It("merges them using default", func() {
 				opt := NewOptions()
-				opt.MergeFuncs.SetTypeMergeFunc(reflect.TypeOf(&Foo{}),
+				opt.mergeFuncs.setTypeMergeFunc(reflect.TypeOf(&Foo{}),
 					func(t, s reflect.Value, o *Options) (reflect.Value, error) {
 						return reflect.ValueOf(nil), nil
 					},
@@ -936,7 +936,7 @@ var _ = Describe("mergeStruct", func() {
 
 		BeforeEach(func() {
 			opt = NewOptions()
-			opt.MergeFuncs.SetKindMergeFunc(reflect.Struct, mergeStruct)
+			opt.mergeFuncs.setKindMergeFunc(reflect.Struct, mergeStruct)
 		})
 
 		Context("nils", func() {
@@ -1108,7 +1108,7 @@ var _ = Describe("mergeStruct", func() {
 
 		It("returns error", func() {
 			opt := NewOptions()
-			opt.MergeFuncs.SetTypeMergeFunc(reflect.TypeOf(targetBaz.Foo), erroringMergeFunc)
+			opt.mergeFuncs.setTypeMergeFunc(reflect.TypeOf(targetBaz.Foo), erroringMergeFunc)
 
 			merged, err := mergeStruct(targetBazVal, sourceBazVal, opt)
 			Expect(err).To(HaveOccurred())
@@ -1129,7 +1129,7 @@ var _ = Describe("mergeStruct", func() {
 		BeforeEach(func() {
 			opt = NewOptions()
 			// merge func for string returns an int. wont be able to set the field to an int
-			opt.MergeFuncs.SetKindMergeFunc(
+			opt.mergeFuncs.setKindMergeFunc(
 				reflect.String,
 				func(t, s reflect.Value, o *Options) (reflect.Value, error) {
 					return reflect.ValueOf(0), nil

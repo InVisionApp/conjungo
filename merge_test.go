@@ -29,7 +29,7 @@ var _ = Describe("Options", func() {
 		})
 
 		It("sets up mergefuncs", func() {
-			Expect(testOpts.MergeFuncs).ToNot(BeNil())
+			Expect(testOpts.mergeFuncs).ToNot(BeNil())
 		})
 	})
 })
@@ -485,7 +485,7 @@ var _ = Describe("Merge", func() {
 				opts := NewOptions()
 				// define a merge func that always errors for the error type
 				ve := reflect.ValueOf(errors.New(""))
-				opts.MergeFuncs.SetTypeMergeFunc(
+				opts.mergeFuncs.setTypeMergeFunc(
 					// error is an interface around *errors.errorString so dereference
 					reflect.Indirect(ve).Type(),
 					erroringMergeFunc,
@@ -537,7 +537,7 @@ var _ = Describe("Merge", func() {
 
 				opts := NewOptions()
 				// define a merge func that returns wrong type
-				opts.MergeFuncs.SetTypeMergeFunc(
+				opts.mergeFuncs.setTypeMergeFunc(
 					reflect.TypeOf(Bar{}),
 					func(t, s reflect.Value, o *Options) (reflect.Value, error) {
 						return reflect.ValueOf("a string"), nil
@@ -610,7 +610,7 @@ var _ = Describe("MergeMapStrIFace", func() {
 
 			opts := NewOptions()
 			// define a merge func that always errors for the error type
-			opts.MergeFuncs.SetTypeMergeFunc(
+			opts.mergeFuncs.setTypeMergeFunc(
 				reflect.TypeOf(errors.New("")),
 				erroringMergeFunc,
 			)

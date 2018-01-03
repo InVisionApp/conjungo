@@ -31,21 +31,21 @@ func newFuncSelector() *funcSelector {
 	}
 }
 
-func (f *funcSelector) SetTypeMergeFunc(t reflect.Type, mf MergeFunc) {
+func (f *funcSelector) setTypeMergeFunc(t reflect.Type, mf MergeFunc) {
 	if nil == f.typeFuncs {
 		f.typeFuncs = map[reflect.Type]MergeFunc{}
 	}
 	f.typeFuncs[t] = mf
 }
 
-func (f *funcSelector) SetKindMergeFunc(k reflect.Kind, mf MergeFunc) {
+func (f *funcSelector) setKindMergeFunc(k reflect.Kind, mf MergeFunc) {
 	if nil == f.kindFuncs {
 		f.kindFuncs = map[reflect.Kind]MergeFunc{}
 	}
 	f.kindFuncs[k] = mf
 }
 
-func (f *funcSelector) SetDefaultMergeFunc(mf MergeFunc) {
+func (f *funcSelector) setDefaultMergeFunc(mf MergeFunc) {
 	f.defaultFunc = mf
 }
 
@@ -53,7 +53,7 @@ func (f *funcSelector) SetDefaultMergeFunc(mf MergeFunc) {
 // First looks for a merge func defined for its type. Type is the most specific way to categorize something,
 // for example, struct type foo of package bar or map[string]string. Next it looks for a merge func defined for its
 // kind, for example, struct or map. At this point, if nothing matches, it will fall back to the default merge definition.
-func (f *funcSelector) GetFunc(v reflect.Value) MergeFunc {
+func (f *funcSelector) getFunc(v reflect.Value) MergeFunc {
 	// prioritize a specific 'type' definition
 	ti := v.Type()
 

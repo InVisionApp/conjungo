@@ -24,10 +24,10 @@ type Options struct {
 
 	// A set of default and customizable functions that define how values are merged
 	// Use the following to define custom merge behavior
-	//		MergeFuncs.SetTypeMergeFunc(t reflect.Type, mf MergeFunc)
-	//		MergeFuncs.SetKindMergeFunc(k reflect.Kind, mf MergeFunc)
-	//		MergeFuncs.SetDefaultMergeFunc(mf MergeFunc)
-	MergeFuncs *funcSelector
+	//		Options.SetTypeMergeFunc(t reflect.Type, mf MergeFunc)
+	//		Options.SetKindMergeFunc(k reflect.Kind, mf MergeFunc)
+	//		Options.SetDefaultMergeFunc(mf MergeFunc)
+	mergeFuncs *funcSelector
 
 	// To be used by merge functions to pass values down into recursive calls freely
 	Context context.Context
@@ -38,8 +38,34 @@ type Options struct {
 func NewOptions() *Options {
 	return &Options{
 		Overwrite:  true,
-		MergeFuncs: newFuncSelector(),
+		mergeFuncs: newFuncSelector(),
 	}
+}
+
+// SetTypeMergeFunc is used to define a custom merge func that will be used to merge two
+// items of a particular type. Accepts the reflect.Type representation of the type and
+// the MergeFunc to merge it.
+// This is useful for defining specific merge behavior of things such as specific struct types
+func (o *Options) SetTypeMergeFunc(t reflect.Type, mf MergeFunc) {
+	o.mergeFuncs.setTypeMergeFunc(t, mf)
+}
+
+// SetKindMergeFunc is used to define a custom merge func that will be used to merge two
+// items of a particular kind. Accepts reflect.Kind and the MergeFunc to merge it.
+// This is useful for defining more general merge behavior, for instance
+// merge all maps or structs in a particular way.
+// A default merge behavior is predefined for map, slice and struct when using NewOptions()
+func (o *Options) SetKindMergeFunc(k reflect.Kind, mf MergeFunc) {
+	o.mergeFuncs.setKindMergeFunc(k, mf)
+}
+
+// SetDefaultMergeFunc is used to define a default merge func that will be used as a fallback
+// when there is no specific merge behavior defined for a given item.
+// If using NewOptions(), a very basic default merge function is predefined which will
+// return the source in overwrite mode and the target otherwise.
+// Use this to define custom default behavior when the simple case is not sufficient.
+func (o *Options) SetDefaultMergeFunc(mf MergeFunc) {
+	o.mergeFuncs.setDefaultMergeFunc(mf)
 }
 
 var valType = reflect.TypeOf(reflect.Value{})
@@ -118,7 +144,7 @@ func merge(valT, valS reflect.Value, opt *Options) (reflect.Value, error) {
 	}
 
 	// look for a merge function
-	f := opt.MergeFuncs.GetFunc(valT)
+	f := opt.mergeFuncs.getFunc(valT)
 	val, err := f(valT, valS, opt)
 	if err != nil {
 		return reflect.Value{}, err
