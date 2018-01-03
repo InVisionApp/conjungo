@@ -110,7 +110,7 @@ func CustomMerge() {
 	}
 
 	opts := conjungo.NewOptions()
-	opts.MergeFuncs.SetTypeMergeFunc(
+	opts.SetTypeMergeFunc(
 		reflect.TypeOf(0),
 		// merge two 'int' types by adding them together
 		func(t, s reflect.Value, o *conjungo.Options) (reflect.Value, error) {
@@ -120,7 +120,7 @@ func CustomMerge() {
 		},
 	)
 
-	opts.MergeFuncs.SetKindMergeFunc(
+	opts.SetKindMergeFunc(
 		reflect.TypeOf(struct{}{}).Kind(),
 		// merge two 'struct' kinds by replacing the target with the source
 		// provides a mechanism to set override = true for just structs
@@ -154,7 +154,7 @@ func CustomStructMerge() {
 	}
 
 	opts := conjungo.NewOptions()
-	opts.MergeFuncs.SetTypeMergeFunc(
+	opts.SetTypeMergeFunc(
 		reflect.TypeOf(Foo{}),
 		// merge two 'int' types by adding them together
 		func(t, s reflect.Value, o *conjungo.Options) (reflect.Value, error) {
@@ -223,7 +223,7 @@ func FromJSON() {
 	}`
 
 	opts := conjungo.NewOptions()
-	opts.MergeFuncs.SetTypeMergeFunc(
+	opts.SetTypeMergeFunc(
 		reflect.TypeOf(jsonString("")),
 		// merge two json strings by unmarshalling them to maps
 		func(t, s reflect.Value, o *conjungo.Options) (reflect.Value, error) {

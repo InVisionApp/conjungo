@@ -29,7 +29,44 @@ var _ = Describe("Options", func() {
 		})
 
 		It("sets up mergefuncs", func() {
-			Expect(testOpts.MergeFuncs).ToNot(BeNil())
+			Expect(testOpts.mergeFuncs).ToNot(BeNil())
+		})
+	})
+
+	Context("set merge funcs", func() {
+		var (
+			opt *Options
+			mf  MergeFunc
+		)
+
+		BeforeEach(func() {
+			opt = NewOptions()
+			mf = func(t, s reflect.Value, o *Options) (reflect.Value, error) {
+				return reflect.Value{}, errors.New("special error")
+			}
+		})
+
+		It("SetTypeMergeFunc sets func", func() {
+			t := reflect.TypeOf("")
+			opt.SetTypeMergeFunc(t, mf)
+
+			_, err := opt.mergeFuncs.typeFuncs[t](reflect.Value{}, reflect.Value{}, nil)
+			Expect(err.Error()).To(Equal("special error"))
+		})
+
+		It("SetKindMergeFunc sets func", func() {
+			k := reflect.ValueOf("").Kind()
+			opt.SetKindMergeFunc(k, mf)
+
+			_, err := opt.mergeFuncs.kindFuncs[k](reflect.Value{}, reflect.Value{}, nil)
+			Expect(err.Error()).To(Equal("special error"))
+		})
+
+		It("SetDefaultMergeFunc sets func", func() {
+			opt.SetDefaultMergeFunc(mf)
+
+			_, err := opt.mergeFuncs.defaultFunc(reflect.Value{}, reflect.Value{}, nil)
+			Expect(err.Error()).To(Equal("special error"))
 		})
 	})
 })
@@ -465,6 +502,20 @@ var _ = Describe("Merge", func() {
 				Expect(target.Error()).To(ContainSubstring("other"))
 			})
 		})
+
+		Context("merge functions", func() {
+			It("merges", func() {
+				target := func() string { return "no" }
+				source := func() string { return "yes" }
+
+				opts := NewOptions()
+				err := Merge(&target, source, opts)
+
+				Expect(err).ToNot(HaveOccurred())
+				ret := reflect.ValueOf(target).Call(nil)
+				Expect(ret[0].Interface()).To(Equal("yes"))
+			})
+		})
 	})
 
 	Context("failure modes", func() {
@@ -485,7 +536,7 @@ var _ = Describe("Merge", func() {
 				opts := NewOptions()
 				// define a merge func that always errors for the error type
 				ve := reflect.ValueOf(errors.New(""))
-				opts.MergeFuncs.SetTypeMergeFunc(
+				opts.mergeFuncs.setTypeMergeFunc(
 					// error is an interface around *errors.errorString so dereference
 					reflect.Indirect(ve).Type(),
 					erroringMergeFunc,
@@ -506,6 +557,18 @@ var _ = Describe("Merge", func() {
 
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("Types do not match"))
+			})
+		})
+
+		Context("NewOptions not used to create options", func() {
+			It("returns an error", func() {
+				target := ""
+				source := ""
+
+				err := Merge(&target, source, &Options{})
+
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("use NewOptions()"))
 			})
 		})
 
@@ -537,7 +600,7 @@ var _ = Describe("Merge", func() {
 
 				opts := NewOptions()
 				// define a merge func that returns wrong type
-				opts.MergeFuncs.SetTypeMergeFunc(
+				opts.mergeFuncs.setTypeMergeFunc(
 					reflect.TypeOf(Bar{}),
 					func(t, s reflect.Value, o *Options) (reflect.Value, error) {
 						return reflect.ValueOf("a string"), nil
@@ -610,7 +673,7 @@ var _ = Describe("MergeMapStrIFace", func() {
 
 			opts := NewOptions()
 			// define a merge func that always errors for the error type
-			opts.MergeFuncs.SetTypeMergeFunc(
+			opts.mergeFuncs.setTypeMergeFunc(
 				reflect.TypeOf(errors.New("")),
 				erroringMergeFunc,
 			)

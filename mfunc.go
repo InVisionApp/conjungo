@@ -7,6 +7,14 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// A MergeFunc defines how two items are merged together. It should accept a reflect.Value
+// representation of a target and source, and return the final merged product.
+// The value returned from the function will be written directly to the parent value,
+// as long as there is no error.
+// Options are also passed in, and it is the responsibility of the function to honor
+// these options and handle any variations in behavior that should occur.
+type MergeFunc func(target, source reflect.Value, o *Options) (reflect.Value, error)
+
 type funcSelector struct {
 	typeFuncs   map[reflect.Type]MergeFunc
 	kindFuncs   map[reflect.Kind]MergeFunc
@@ -25,21 +33,21 @@ func newFuncSelector() *funcSelector {
 	}
 }
 
-func (f *funcSelector) SetTypeMergeFunc(t reflect.Type, mf MergeFunc) {
+func (f *funcSelector) setTypeMergeFunc(t reflect.Type, mf MergeFunc) {
 	if nil == f.typeFuncs {
 		f.typeFuncs = map[reflect.Type]MergeFunc{}
 	}
 	f.typeFuncs[t] = mf
 }
 
-func (f *funcSelector) SetKindMergeFunc(k reflect.Kind, mf MergeFunc) {
+func (f *funcSelector) setKindMergeFunc(k reflect.Kind, mf MergeFunc) {
 	if nil == f.kindFuncs {
 		f.kindFuncs = map[reflect.Kind]MergeFunc{}
 	}
 	f.kindFuncs[k] = mf
 }
 
-func (f *funcSelector) SetDefaultMergeFunc(mf MergeFunc) {
+func (f *funcSelector) setDefaultMergeFunc(mf MergeFunc) {
 	f.defaultFunc = mf
 }
 
@@ -47,7 +55,7 @@ func (f *funcSelector) SetDefaultMergeFunc(mf MergeFunc) {
 // First looks for a merge func defined for its type. Type is the most specific way to categorize something,
 // for example, struct type foo of package bar or map[string]string. Next it looks for a merge func defined for its
 // kind, for example, struct or map. At this point, if nothing matches, it will fall back to the default merge definition.
-func (f *funcSelector) GetFunc(v reflect.Value) MergeFunc {
+func (f *funcSelector) getFunc(v reflect.Value) MergeFunc {
 	// prioritize a specific 'type' definition
 	ti := v.Type()
 
@@ -67,14 +75,8 @@ func (f *funcSelector) GetFunc(v reflect.Value) MergeFunc {
 	return defaultMergeFunc
 }
 
-// A function which defines how two items of the same type are merged together.
-// Options are also passed in and it is the responsibility of the merge function to handle
-// any variations in behavior that should occur. The value returned from the function will be
-// written to directly to the target map, as long as there is no error.
-type MergeFunc func(reflect.Value, reflect.Value, *Options) (reflect.Value, error)
-
-// The most basic merge function to be used as default behavior. In overwrite mode, it returns the source. Otherwise,
-// it returns the target.
+// The most basic merge function to be used as default behavior.
+// In overwrite mode, it returns the source. Otherwise, it returns the target.
 func defaultMergeFunc(t, s reflect.Value, o *Options) (reflect.Value, error) {
 	if o.Overwrite {
 		return s, nil
