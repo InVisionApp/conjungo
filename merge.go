@@ -70,8 +70,11 @@ func (o *Options) SetDefaultMergeFunc(mf MergeFunc) {
 
 var valType = reflect.TypeOf(reflect.Value{})
 
-// Merge the source onto the target following the options given. If options is nil,
-// defaults will be used.
+// Merge the given source onto the given target following the options given. The target value
+// must be a pointer. If opt is nil, defaults will be used. If an error occurs during
+// the merge process the target will be unmodified. Merge will accept any two entities,
+// as long as their types are the same.
+// See Options and MergeFunc for further customization possibilities.
 func Merge(target, source interface{}, opt *Options) error {
 	vT := reflect.ValueOf(target)
 	vS := reflect.ValueOf(source)
