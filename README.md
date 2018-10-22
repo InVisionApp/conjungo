@@ -239,4 +239,4 @@ opts.MergeFuncs.SetTypeMergeFunc(
 )
 ```
 
-See [working examples](example/main.go) for more details.
+See [working examples](_example/main.go) for more details.
