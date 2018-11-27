@@ -145,6 +145,33 @@ var _ = Describe("Merge", func() {
 			})
 		})
 
+		Context("override different type", func() {
+			BeforeEach(func() {
+				targetMap = map[string]interface{}{
+					"A": map[string]bool{"nested": true},
+				}
+
+				sourceMap = map[string]interface{}{
+					"A": map[string]string{"nested": "someValue"},
+				}
+			})
+
+			It("merges correctly", func() {
+				opts := NewOptions()
+				opts.OverwriteDifferentTypes = true
+				err := Merge(&targetMap, sourceMap, opts)
+				Expect(err).ToNot(HaveOccurred())
+
+				jsonB, errJson := json.Marshal(targetMap)
+				Expect(errJson).ToNot(HaveOccurred())
+
+				expectedJSON := `{
+			  "A": {"nested":"someValue"}
+			}`
+				Expect(jsonB).To(MatchJSON(expectedJSON))
+			})
+		})
+
 		Context("structs", func() {
 			var (
 				targetStruct, sourceStruct Foo
@@ -190,7 +217,49 @@ var _ = Describe("Merge", func() {
 				Expect(jsonB).To(MatchJSON(expectedJSON))
 			})
 		})
+
 	})
+
+	// // Test
+	// Context("override different type", func() {
+	// 	var (
+	// 		targetStruct, sourceStruct Foo
+	// 	)
+
+	// 	BeforeEach(func() {
+	// 		targetStruct = map[string]interface{}{
+	// 			A:    map[string]bool{"test" : true},
+	// 		}
+
+	// 		targetStruct = map[string]interface{}{
+	// 			A:    map[string]string{"test" : "testvalue"},
+	// 		}
+	// 	})
+
+	// 	It("merges correctly", func() {
+	// 		err := Merge(&targetStruct, sourceStruct, NewOptions())
+
+	// 		Expect(err).ToNot(HaveOccurred())
+	// 		//newMap, ok := merged.(map[string]interface{})
+	// 		//Expect(ok).To(BeTrue())
+
+	// 		jsonB, errJson := json.Marshal(targetStruct)
+	// 		Expect(errJson).ToNot(HaveOccurred())
+
+	// 		expectedJSON := `{
+	// 			"Name": "source",
+	// 			"Size": 3,
+	// 			"Special": true,
+	// 			"Tags": [
+	// 			  "unchanged",
+	// 			  0,
+	// 			  "added",
+	// 			  1
+	// 			]
+	// 		}`
+	// 		Expect(jsonB).To(MatchJSON(expectedJSON))
+	// 	})
+	// })
 
 	Context("happy path - overwrite is false", func() {
 		var (
