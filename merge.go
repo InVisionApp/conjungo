@@ -14,6 +14,10 @@ type Options struct {
 	// Overwrite a target value with source value even if it already exists
 	Overwrite bool
 
+	// Overwrite target value with source value if types differ, instead of
+	// returning an error
+	OverwriteDifferentTypes bool
+
 	// Unexported fields on a struct can not be set. When a struct contains an unexported
 	// field, the default behavior is to treat the entire struct as a single entity and
 	// replace according to Overwrite settings. If this is enabled, an error will be thrown instead.
@@ -146,9 +150,13 @@ func merge(valT, valS reflect.Value, opt *Options) (reflect.Value, error) {
 		valS = reflect.ValueOf(valS.Interface())
 	}
 
-	// if types do not match, bail
 	if valT.Type() != valS.Type() {
-		return reflect.Value{}, fmt.Errorf("Types do not match: %v, %v", valT.Type(), valS.Type())
+		// Intentionally choose source value if the opt is set
+		if opt.OverwriteDifferentTypes {
+			return valS, nil
+		} else {
+			return reflect.Value{}, fmt.Errorf("Types do not match: %v, %v", valT.Type(), valS.Type())
+		}
 	}
 
 	// look for a merge function
