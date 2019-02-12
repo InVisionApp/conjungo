@@ -147,7 +147,7 @@ func merge(valT, valS reflect.Value, opt *Options) (reflect.Value, error) {
 	}
 
 	// if types do not match, bail
-	if valT.Type() != valS.Type() {
+	if opt.Overwrite && valT.Type() != valS.Type() {
 		return reflect.Value{}, fmt.Errorf("Types do not match: %v, %v", valT.Type(), valS.Type())
 	}
 
