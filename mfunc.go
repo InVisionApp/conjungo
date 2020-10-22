@@ -28,6 +28,7 @@ func newFuncSelector() *funcSelector {
 			reflect.Map:    mergeMap,
 			reflect.Slice:  mergeSlice,
 			reflect.Struct: mergeStruct,
+			reflect.Ptr:    mergePtr,
 		},
 		defaultFunc: defaultMergeFunc,
 	}
@@ -174,6 +175,34 @@ func mergeStruct(t, s reflect.Value, o *Options) (reflect.Value, error) {
 
 		fieldT.Set(merged)
 	}
+
+	return newT, nil
+}
+
+// This func is designed to be called by merge().
+// It should not be used on its own because it will panic.
+func mergePtr(t, s reflect.Value, o *Options) (reflect.Value, error) {
+	valT := t.Elem()
+	valS := s.Elem()
+	newT := reflect.New(valT.Type())
+
+	//newT.Elem() should always be valid because it's created above
+	if !newT.Elem().CanSet() {
+		if o.ErrorOnUnexported {
+			return reflect.Value{}, fmt.Errorf("value type %v is unexported",
+				newT.Type().Name())
+		}
+
+		// revert to using the default func instead to treat this value type as single entity
+		return defaultMergeFunc(t, s, o)
+	}
+
+	merged, err := merge(valT, valS, o)
+	if err != nil {
+		return reflect.Value{}, err
+	}
+
+	newT.Elem().Set(merged)
 
 	return newT, nil
 }
