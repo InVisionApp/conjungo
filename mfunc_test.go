@@ -208,6 +208,48 @@ var _ = Describe("defaultMergeFunc", func() {
 		})
 	})
 
+	// Currently IgnoreEmpty without Override has the same effect as not setting it, preparing for additional options
+	// as I didn't want to tie it hard on Overwrite right now
+	Context("ignoreempty true, overwrite false and source not empty", func() {
+		It("returns source", func() {
+			opts.IgnoreEmpty = true
+			opts.Overwrite = false
+			merged, err := defaultMergeFunc(reflect.ValueOf("a"), reflect.ValueOf("b"), opts)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(merged.Interface()).To(Equal("a"))
+		})
+	})
+
+	Context("ignoreempty true, overwrite false and source empty", func() {
+		It("returns source", func() {
+			opts.IgnoreEmpty = true
+			opts.Overwrite = false
+			merged, err := defaultMergeFunc(reflect.ValueOf("a"), reflect.ValueOf(""), opts)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(merged.Interface()).To(Equal("a"))
+		})
+	})
+
+	Context("ignoreempty true, overwrite true and source not empty", func() {
+		It("returns source", func() {
+			opts.IgnoreEmpty = true
+			opts.Overwrite = true
+			merged, err := defaultMergeFunc(reflect.ValueOf("a"), reflect.ValueOf("b"), opts)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(merged.Interface()).To(Equal("b"))
+		})
+	})
+
+	Context("ignoreempty true, overwrite true and source empty", func() {
+		It("returns source", func() {
+			opts.IgnoreEmpty = true
+			opts.Overwrite = true
+			merged, err := defaultMergeFunc(reflect.ValueOf("a"), reflect.ValueOf(""), opts)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(merged.Interface()).To(Equal("a"))
+		})
+	})
+
 	Context("never errors", func() {
 		It("doesnt error", func() {
 			_, err := defaultMergeFunc(reflect.ValueOf(nil), reflect.ValueOf(nil), NewOptions())

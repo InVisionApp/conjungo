@@ -78,6 +78,13 @@ func (f *funcSelector) getFunc(v reflect.Value) MergeFunc {
 // The most basic merge function to be used as default behavior.
 // In overwrite mode, it returns the source. Otherwise, it returns the target.
 func defaultMergeFunc(t, s reflect.Value, o *Options) (reflect.Value, error) {
+	// Explicitly using IsZero due to: val.IsZero() != !val.IsValid() as used by isEmpty()
+	// reflect.ValueOf("").IsZero() == true
+	// reflect.ValueOf("").IsValid() == true
+	if o.IgnoreEmpty && s.IsZero() {
+		return t, nil
+	}
+
 	if o.Overwrite {
 		return s, nil
 	}
