@@ -836,6 +836,7 @@ var _ = Describe("mergeStruct", func() {
 				Ptr    *string
 				Slice  *[]interface{}
 				Struct *Obj
+				Bytes  []byte
 			}
 
 			var targetBaz, sourceBaz Baz
@@ -848,11 +849,13 @@ var _ = Describe("mergeStruct", func() {
 					Ptr:    &t,
 					Slice:  &[]interface{}{"unchanged", 0},
 					Struct: &Obj{Name: "target"},
+					Bytes:  []byte("target"),
 				}
 				sourceBaz = Baz{
 					Ptr:    &s,
 					Slice:  &[]interface{}{"added", 1},
 					Struct: &Obj{Name: "source"},
+					Bytes:  []byte("source"),
 				}
 			})
 
@@ -878,6 +881,7 @@ var _ = Describe("mergeStruct", func() {
 					ContainElement(1),
 				))
 				Expect((*mergedStruct.Struct).Name).To(Equal(specialString("merge")))
+				Expect(mergedStruct.Bytes).To(Equal([]byte("targetsource")))
 			})
 
 			Context("source field is nil", func() {
