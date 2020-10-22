@@ -829,6 +829,7 @@ var _ = Describe("mergeStruct", func() {
 			type Baz struct {
 				Ptr   *string
 				Slice *[]interface{}
+				Bytes []byte
 			}
 
 			var targetBaz, sourceBaz Baz
@@ -840,10 +841,12 @@ var _ = Describe("mergeStruct", func() {
 				targetBaz = Baz{
 					Ptr:   &t,
 					Slice: &[]interface{}{"unchanged", 0},
+					Bytes: []byte("target"),
 				}
 				sourceBaz = Baz{
 					Ptr:   &s,
 					Slice: &[]interface{}{"added", 1},
+					Bytes: []byte("source"),
 				}
 			})
 
@@ -862,6 +865,7 @@ var _ = Describe("mergeStruct", func() {
 					ContainElement("added"),
 					ContainElement(1),
 				))
+				Expect(mergedStruct.Bytes).To(Equal([]byte("source")))
 			})
 
 			Context("source field is nil", func() {
