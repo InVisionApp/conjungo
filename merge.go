@@ -14,6 +14,10 @@ type Options struct {
 	// Overwrite a target value with source value even if it already exists
 	Overwrite bool
 
+	// Don't overwrite target if source value is a zero value. Useful with the option Overwrite to
+	// overwrite a target value only when the source value is not empty.
+	IgnoreEmpty bool
+
 	// Unexported fields on a struct can not be set. When a struct contains an unexported
 	// field, the default behavior is to treat the entire struct as a single entity and
 	// replace according to Overwrite settings. If this is enabled, an error will be thrown instead.
@@ -38,8 +42,9 @@ type Options struct {
 // default merge function definitions are added.
 func NewOptions() *Options {
 	return &Options{
-		Overwrite:  true,
-		mergeFuncs: newFuncSelector(),
+		Overwrite:   true,
+		IgnoreEmpty: false,
+		mergeFuncs:  newFuncSelector(),
 	}
 }
 
@@ -162,7 +167,6 @@ func merge(valT, valS reflect.Value, opt *Options) (reflect.Value, error) {
 }
 
 func isEmpty(val reflect.Value) bool {
-	// is zero value
 	if !val.IsValid() {
 		return true
 	}
