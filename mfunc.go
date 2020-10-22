@@ -23,7 +23,9 @@ type funcSelector struct {
 
 func newFuncSelector() *funcSelector {
 	return &funcSelector{
-		typeFuncs: map[reflect.Type]MergeFunc{},
+		typeFuncs: map[reflect.Type]MergeFunc{
+			reflect.TypeOf([]byte{}): mergeBytes,
+		},
 		kindFuncs: map[reflect.Kind]MergeFunc{
 			reflect.Map:    mergeMap,
 			reflect.Slice:  mergeSlice,
@@ -83,6 +85,20 @@ func defaultMergeFunc(t, s reflect.Value, o *Options) (reflect.Value, error) {
 	}
 
 	return t, nil
+}
+
+// By default don't treat byte slices as a normal slice, they should not be appended like mergeSlice
+// does, instead replaced if needed according to the default merge func
+func mergeBytes(t, s reflect.Value, o *Options) (reflect.Value, error) {
+	if s.Len() == 0 {
+		return t, nil
+	}
+
+	if t.Len() == 0 {
+		return s, nil
+	}
+
+	return defaultMergeFunc(t, s, o)
 }
 
 func mergeMap(t, s reflect.Value, o *Options) (v reflect.Value, err error) {
