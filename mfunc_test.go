@@ -863,7 +863,7 @@ var _ = Describe("mergeStruct", func() {
 
 			It("handles them properly", func() {
 				opts := NewOptions()
-				opts.SetKindMergeFunc(reflect.TypeOf(specialString("")).Kind(),
+				opts.SetTypeMergeFunc(reflect.TypeOf(specialString("")),
 					func(t, s reflect.Value, o *Options) (reflect.Value, error) {
 						return reflect.ValueOf(specialString("merge")), nil
 					},
