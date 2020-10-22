@@ -27,6 +27,10 @@ func main() {
 	CustomMerge()
 
 	fmt.Println()
+	fmt.Println("Custom implements merge func")
+	CustomImplementsMerge()
+
+	fmt.Println()
 	fmt.Println("Custom struct merge func")
 	CustomStructMerge()
 
@@ -135,6 +139,57 @@ func CustomMerge() {
 	}
 
 	marshalIndentPrint(targetMap)
+}
+
+type customImplementsFoo struct {
+	Bar string
+	Baz customImplementsSpecial
+	Qux *customImplementsSpecial
+}
+
+type customImplementsSpecialFace interface {
+	HasMethod()
+}
+
+type customImplementsSpecial string
+
+func (s *customImplementsSpecial) HasMethod() {}
+
+func CustomImplementsMerge() {
+	dog := customImplementsSpecial("dog")
+	target := customImplementsFoo{
+		Bar: "hello",
+		Baz: customImplementsSpecial("beautiful"),
+		Qux: &dog,
+	}
+
+	world := customImplementsSpecial("dog")
+	source := customImplementsFoo{
+		// Does not overwrite because opts.Overwrite is not set
+		Bar: "aloha!",
+		// Does not trigger because not a pointer, but would overwrite if opts.Overwrite is set
+		Baz: customImplementsSpecial("ugly"),
+		// Triggers custom implements func
+		Qux: &world,
+	}
+
+	opts := conjungo.NewOptions()
+	opts.Overwrite = false
+	opts.SetImplementsMergeFunc(
+		reflect.TypeOf((*customImplementsSpecialFace)(nil)).Elem(),
+		// if triggered returns pointer to type customImplementsSpecial with value "galaxy"
+		func(t, s reflect.Value, o *conjungo.Options) (reflect.Value, error) {
+			galaxy := customImplementsSpecial("galaxy")
+			return reflect.ValueOf(&galaxy), nil
+		},
+	)
+
+	err := conjungo.Merge(&target, source, opts)
+	if err != nil {
+		log.Error(err)
+	}
+
+	marshalIndentPrint(target)
 }
 
 func CustomStructMerge() {

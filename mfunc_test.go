@@ -40,9 +40,15 @@ var _ = Describe("newFuncSelector", func() {
 	})
 })
 
-var _ = Describe("Set Merge Func", func() {
-	type TestKey struct{}
+type TestKey struct{}
 
+func (t *TestKey) TestMethod() {}
+
+type TestMergeFuncFace interface {
+	TestMethod()
+}
+
+var _ = Describe("Set Merge Func", func() {
 	var (
 		fs *funcSelector
 	)
@@ -57,6 +63,16 @@ var _ = Describe("Set Merge Func", func() {
 			t := reflect.TypeOf(TestKey{})
 			fs.setTypeMergeFunc(t, newMergeFuncStub(stubReturns))
 			returned, _ := fs.typeFuncs[t](reflect.Value{}, reflect.Value{}, NewOptions())
+			Expect(returned.Interface()).To(Equal(stubReturns))
+		})
+	})
+
+	Context("Implements Func", func() {
+		It("adds the func correctly", func() {
+			stubReturns := "uniqe string"
+			t := reflect.TypeOf((*TestMergeFuncFace)(nil)).Elem()
+			fs.setImplementsMergeFunc(t, newMergeFuncStub(stubReturns))
+			returned, _ := fs.implementsFuncs[t](reflect.Value{}, reflect.Value{}, NewOptions())
 			Expect(returned.Interface()).To(Equal(stubReturns))
 		})
 	})
@@ -88,9 +104,11 @@ var _ = Describe("Set Merge Func", func() {
 			stubReturns := "uniqe string"
 			f := newMergeFuncStub(stubReturns)
 			t := reflect.TypeOf(TestKey{})
+			p := reflect.TypeOf(&TestKey{})
 			k := reflect.TypeOf(TestKey{}).Kind()
 
 			fs.setTypeMergeFunc(t, f)
+			fs.setTypeMergeFunc(p, f)
 			fs.setKindMergeFunc(k, f)
 			fs.setDefaultMergeFunc(f)
 		})
@@ -98,17 +116,16 @@ var _ = Describe("Set Merge Func", func() {
 })
 
 var _ = Describe("GetFunc", func() {
-	type TestKey struct{}
-
 	var (
 		fs  *funcSelector
 		key *TestKey
 	)
 
 	const (
-		typeStubReturns    = "type"
-		kindStubReturns    = "kind"
-		defaultStubReturns = "default"
+		typeStubReturns       = "type"
+		implementsStubReturns = "implements"
+		kindStubReturns       = "kind"
+		defaultStubReturns    = "default"
 	)
 
 	BeforeEach(func() {
@@ -127,7 +144,17 @@ var _ = Describe("GetFunc", func() {
 			Expect(returned.Interface()).To(Equal(typeStubReturns))
 		})
 
-		Context("kind func is also defined", func() {
+		Context("implements func is also defined", func() {
+			It("choses the type func", func() {
+				t := reflect.TypeOf((*TestMergeFuncFace)(nil)).Elem()
+				fs.setImplementsMergeFunc(t, newMergeFuncStub(implementsStubReturns))
+				f := fs.getFunc(reflect.ValueOf(key))
+				returned, _ := f(reflect.Value{}, reflect.Value{}, NewOptions())
+				Expect(returned.Interface()).To(Equal(typeStubReturns))
+			})
+		})
+
+		Context("implements and kind func is also defined", func() {
 			It("choses the type func", func() {
 				fs.setKindMergeFunc(reflect.TypeOf(key).Kind(), newMergeFuncStub(kindStubReturns))
 				f := fs.getFunc(reflect.ValueOf(key))
@@ -138,6 +165,16 @@ var _ = Describe("GetFunc", func() {
 	})
 
 	Context("no type func defined", func() {
+		Context("implements func is defined", func() {
+			It("choses the implements func", func() {
+				t := reflect.TypeOf((*TestMergeFuncFace)(nil)).Elem()
+				fs.setImplementsMergeFunc(t, newMergeFuncStub(implementsStubReturns))
+				f := fs.getFunc(reflect.ValueOf(key))
+				returned, _ := f(reflect.Value{}, reflect.Value{}, NewOptions())
+				Expect(returned.Interface()).To(Equal(implementsStubReturns))
+			})
+		})
+
 		Context("kind func is defined", func() {
 			It("choses the kind func", func() {
 				fs.setKindMergeFunc(reflect.TypeOf(key).Kind(), newMergeFuncStub(kindStubReturns))
@@ -147,7 +184,7 @@ var _ = Describe("GetFunc", func() {
 			})
 		})
 
-		Context("no kind func defined", func() {
+		Context("no implements and no kind func defined", func() {
 			Context("default func defined", func() {
 				It("choses the default func", func() {
 					fs.setDefaultMergeFunc(newMergeFuncStub(defaultStubReturns))
