@@ -469,6 +469,153 @@ var _ = Describe("mergeMap", func() {
 
 })
 
+var _ = Describe("mergeBytes", func() {
+	var (
+		targetBytes, sourceBytes       []byte
+		targetBytesVal, sourceBytesVal reflect.Value
+	)
+
+	BeforeEach(func() {
+		targetBytes = []byte("target")
+		sourceBytes = []byte("source")
+	})
+
+	JustBeforeEach(func() {
+		targetBytesVal = reflect.ValueOf(targetBytes)
+		sourceBytesVal = reflect.ValueOf(sourceBytes)
+	})
+
+	Context("two populated byte slices", func() {
+		It("merges them", func() {
+			merged, err := mergeBytes(targetBytesVal, sourceBytesVal, NewOptions())
+			Expect(err).ToNot(HaveOccurred())
+
+			mergedBytes, ok := merged.Interface().([]byte)
+			Expect(ok).To(BeTrue())
+
+			Expect(mergedBytes).To(Equal([]byte("source")))
+		})
+	})
+
+	Context("target slice is empty", func() {
+		BeforeEach(func() {
+			targetBytes = []byte{}
+		})
+
+		It("equals source", func() {
+			merged, err := mergeBytes(targetBytesVal, sourceBytesVal, NewOptions())
+			Expect(err).ToNot(HaveOccurred())
+
+			mergedBytes, ok := merged.Interface().([]byte)
+			Expect(ok).To(BeTrue())
+
+			Expect(len(mergedBytes)).To(Equal(len(sourceBytes)))
+			Expect(mergedBytes).To(Equal([]byte("source")))
+		})
+	})
+
+	Context("source slice is empty", func() {
+		BeforeEach(func() {
+			sourceBytes = []byte{}
+		})
+
+		It("equals target", func() {
+			merged, err := mergeBytes(targetBytesVal, sourceBytesVal, NewOptions())
+			Expect(err).ToNot(HaveOccurred())
+
+			mergedBytes, ok := merged.Interface().([]byte)
+			Expect(ok).To(BeTrue())
+
+			Expect(len(mergedBytes)).To(Equal(len(targetBytes)))
+			Expect(mergedBytes).To(Equal([]byte("target")))
+		})
+	})
+
+	Context("both slices are empty", func() {
+		BeforeEach(func() {
+			targetBytes = []byte{}
+			sourceBytes = []byte{}
+		})
+
+		It("returns empty slice", func() {
+			merged, err := mergeBytes(targetBytesVal, sourceBytesVal, NewOptions())
+			Expect(err).ToNot(HaveOccurred())
+
+			mergedBytes, ok := merged.Interface().([]byte)
+			Expect(ok).To(BeTrue())
+
+			Expect(mergedBytes).To(BeEmpty())
+		})
+	})
+
+	Context("nil values", func() {
+		// these are called via merge() because that is what does the nil checks
+		By("call via merge()")
+
+		Context("target val is nil", func() {
+			JustBeforeEach(func() {
+				targetBytesVal = reflect.Value{}
+			})
+
+			It("equals source", func() {
+				merged, err := merge(targetBytesVal, sourceBytesVal, NewOptions())
+				Expect(err).ToNot(HaveOccurred())
+
+				mergedBytes, ok := merged.Interface().([]byte)
+				Expect(ok).To(BeTrue())
+
+				Expect(len(mergedBytes)).To(Equal(len(sourceBytes)))
+				Expect(mergedBytes).To(Equal([]byte("source")))
+			})
+		})
+
+		Context("nil slice target", func() {
+			It("equals source", func() {
+				var m []byte
+				targetBytesVal = reflect.ValueOf(m)
+				merged, err := merge(targetBytesVal, sourceBytesVal, NewOptions())
+
+				Expect(err).ToNot(HaveOccurred())
+				Expect(merged.Interface()).To(Equal(sourceBytes))
+			})
+		})
+
+		Context("source slice is nil", func() {
+			JustBeforeEach(func() {
+				sourceBytesVal = reflect.Value{}
+			})
+
+			It("equals target", func() {
+				merged, err := merge(targetBytesVal, sourceBytesVal, NewOptions())
+				Expect(err).ToNot(HaveOccurred())
+
+				mergedBytes, ok := merged.Interface().([]byte)
+				Expect(ok).To(BeTrue())
+
+				Expect(len(mergedBytes)).To(Equal(len(targetBytes)))
+				Expect(mergedBytes).To(Equal([]byte("target")))
+			})
+		})
+
+		Context("both byte slices are nil", func() {
+			JustBeforeEach(func() {
+				targetBytesVal = reflect.Value{}
+				sourceBytesVal = reflect.Value{}
+			})
+
+			It("returns empty byte slice", func() {
+				merged, err := merge(targetBytesVal, sourceBytesVal, NewOptions())
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(merged.IsValid()).ToNot(BeTrue())
+			})
+		})
+
+	})
+})
+
+// ---------------
+
 var _ = Describe("mergeSlice", func() {
 	var (
 		targetSlice, sourceSlice       []interface{}
