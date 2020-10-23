@@ -51,13 +51,13 @@ func (o *Options) SetTypeMergeFunc(t reflect.Type, mf MergeFunc) {
 	o.mergeFuncs.setTypeMergeFunc(t, mf)
 }
 
-// SetImpelementsMergeFunc is used to define a custom merge func that will be used to merge two
+// SetInterfaceMergeFunc is used to define a custom merge func that will be used to merge two
 // items satisfying a particular interface type. Accepts the reflect.Type representation of the
 // interface type element and the MergeFunc to merge it.
 // This is useful for defining specific merge behavior of things where it would need many type
 // funcs and at the same time a kind func would merge too many types
-func (o *Options) SetImplementsMergeFunc(t reflect.Type, mf MergeFunc) {
-	o.mergeFuncs.setImplementsMergeFunc(t, mf)
+func (o *Options) SetInterfaceMergeFunc(t reflect.Type, mf MergeFunc) {
+	o.mergeFuncs.setInterfaceMergeFunc(t, mf)
 }
 
 // SetKindMergeFunc is used to define a custom merge func that will be used to merge two

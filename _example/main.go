@@ -27,8 +27,8 @@ func main() {
 	CustomMerge()
 
 	fmt.Println()
-	fmt.Println("Custom implements merge func")
-	CustomImplementsMerge()
+	fmt.Println("Custom interface merge func")
+	CustomInterfaceMerge()
 
 	fmt.Println()
 	fmt.Println("Custom struct merge func")
@@ -141,45 +141,45 @@ func CustomMerge() {
 	marshalIndentPrint(targetMap)
 }
 
-type customImplementsFoo struct {
+type customInterfaceFoo struct {
 	Bar string
-	Baz customImplementsSpecial
-	Qux *customImplementsSpecial
+	Baz customInterfaceSpecial
+	Qux *customInterfaceSpecial
 }
 
-type customImplementsSpecialFace interface {
+type customInterfaceSpecialFace interface {
 	HasMethod()
 }
 
-type customImplementsSpecial string
+type customInterfaceSpecial string
 
-func (s *customImplementsSpecial) HasMethod() {}
+func (s *customInterfaceSpecial) HasMethod() {}
 
-func CustomImplementsMerge() {
-	dog := customImplementsSpecial("dog")
-	target := customImplementsFoo{
+func CustomInterfaceMerge() {
+	dog := customInterfaceSpecial("dog")
+	target := customInterfaceFoo{
 		Bar: "hello",
-		Baz: customImplementsSpecial("beautiful"),
+		Baz: customInterfaceSpecial("beautiful"),
 		Qux: &dog,
 	}
 
-	world := customImplementsSpecial("dog")
-	source := customImplementsFoo{
+	world := customInterfaceSpecial("dog")
+	source := customInterfaceFoo{
 		// Does not overwrite because opts.Overwrite is not set
 		Bar: "aloha!",
 		// Does not trigger because not a pointer, but would overwrite if opts.Overwrite is set
-		Baz: customImplementsSpecial("ugly"),
-		// Triggers custom implements func
+		Baz: customInterfaceSpecial("ugly"),
+		// Triggers custom interface func
 		Qux: &world,
 	}
 
 	opts := conjungo.NewOptions()
 	opts.Overwrite = false
-	opts.SetImplementsMergeFunc(
-		reflect.TypeOf((*customImplementsSpecialFace)(nil)).Elem(),
-		// if triggered returns pointer to type customImplementsSpecial with value "galaxy"
+	opts.SetInterfaceMergeFunc(
+		reflect.TypeOf((*customInterfaceSpecialFace)(nil)).Elem(),
+		// if triggered returns pointer to type customInterfaceSpecial with value "galaxy"
 		func(t, s reflect.Value, o *conjungo.Options) (reflect.Value, error) {
-			galaxy := customImplementsSpecial("galaxy")
+			galaxy := customInterfaceSpecial("galaxy")
 			return reflect.ValueOf(&galaxy), nil
 		},
 	)

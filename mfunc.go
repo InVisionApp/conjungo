@@ -16,16 +16,16 @@ import (
 type MergeFunc func(target, source reflect.Value, o *Options) (reflect.Value, error)
 
 type funcSelector struct {
-	typeFuncs       map[reflect.Type]MergeFunc
-	implementsFuncs map[reflect.Type]MergeFunc
-	kindFuncs       map[reflect.Kind]MergeFunc
-	defaultFunc     MergeFunc
+	typeFuncs      map[reflect.Type]MergeFunc
+	interfaceFuncs map[reflect.Type]MergeFunc
+	kindFuncs      map[reflect.Kind]MergeFunc
+	defaultFunc    MergeFunc
 }
 
 func newFuncSelector() *funcSelector {
 	return &funcSelector{
-		typeFuncs:       map[reflect.Type]MergeFunc{},
-		implementsFuncs: map[reflect.Type]MergeFunc{},
+		typeFuncs:      map[reflect.Type]MergeFunc{},
+		interfaceFuncs: map[reflect.Type]MergeFunc{},
 		kindFuncs: map[reflect.Kind]MergeFunc{
 			reflect.Map:    mergeMap,
 			reflect.Slice:  mergeSlice,
@@ -42,11 +42,11 @@ func (f *funcSelector) setTypeMergeFunc(t reflect.Type, mf MergeFunc) {
 	f.typeFuncs[t] = mf
 }
 
-func (f *funcSelector) setImplementsMergeFunc(t reflect.Type, mf MergeFunc) {
-	if nil == f.implementsFuncs {
-		f.implementsFuncs = map[reflect.Type]MergeFunc{}
+func (f *funcSelector) setInterfaceMergeFunc(t reflect.Type, mf MergeFunc) {
+	if nil == f.interfaceFuncs {
+		f.interfaceFuncs = map[reflect.Type]MergeFunc{}
 	}
-	f.implementsFuncs[t] = mf
+	f.interfaceFuncs[t] = mf
 }
 
 func (f *funcSelector) setKindMergeFunc(k reflect.Kind, mf MergeFunc) {
@@ -72,8 +72,8 @@ func (f *funcSelector) getFunc(v reflect.Value) MergeFunc {
 		return fx
 	}
 
-	// or look for if the type implements a type
-	for impl, fx := range f.implementsFuncs {
+	// or look for if the type interface a type
+	for impl, fx := range f.interfaceFuncs {
 		if ti.Implements(impl) {
 			return fx
 		}
