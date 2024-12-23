@@ -1,3 +1,6 @@
+| :warning: This project is no longer actively supported.
+| ---
+
 <img align="right" src="images/gopher-merge.png">
 
 # conjungo
